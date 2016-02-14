@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <Version Value="9"/>
+    <BuildModes Active="Default"/>
+    <Units Count="6">
+      <Unit0>
+        <Filename Value="KMemoDemoLaz.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="2"/>
+        <CursorPos Y="15"/>
+        <UsageCount Value="24"/>
+        <Loaded Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="Main.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MainForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <TopLine Value="83"/>
+        <CursorPos X="75" Y="91"/>
+        <UsageCount Value="24"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="../../source/kmemo.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="229"/>
+        <CursorPos X="34" Y="29"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="../../../../../../../../lazarus/lcl/include/picture.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="515"/>
+        <CursorPos X="26" Y="514"/>
+        <UsageCount Value="10"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="88"/>
+        <CursorPos X="3" Y="270"/>
+        <UsageCount Value="10"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../../source/keditcommon.pas"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="237"/>
+        <CursorPos X="14" Y="254"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit5>
+    </Units>
+    <JumpHistory Count="22" HistoryIndex="21">
+      <Position1>
+        <Filename Value="Main.pas"/>
+        <Caret Line="151" Column="6" TopLine="149"/>
+      </Position1>
+      <Position2>
+        <Filename Value="Main.pas"/>
+        <Caret Line="498" Column="7" TopLine="488"/>
+      </Position2>
+      <Position3>
+        <Filename Value="Main.pas"/>
+        <Caret Line="486" Column="9" TopLine="455"/>
+      </Position3>
+      <Position4>
+        <Filename Value="Main.pas"/>
+        <Caret Line="151" Column="6" TopLine="149"/>
+      </Position4>
+      <Position5>
+        <Filename Value="Main.pas"/>
+        <Caret Line="482" Column="18" TopLine="474"/>
+      </Position5>
+      <Position6>
+        <Filename Value="Main.pas"/>
+        <Caret Line="151" Column="9" TopLine="149"/>
+      </Position6>
+      <Position7>
+        <Filename Value="KMemoDemoLaz.lpr"/>
+      </Position7>
+      <Position8>
+        <Filename Value="Main.pas"/>
+        <Caret Line="310" Column="4" TopLine="296"/>
+      </Position8>
+      <Position9>
+        <Filename Value="Main.pas"/>
+        <Caret Line="305" Column="11" TopLine="270"/>
+      </Position9>
+      <Position10>
+        <Filename Value="Main.pas"/>
+        <Caret Line="276" TopLine="270"/>
+      </Position10>
+      <Position11>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="9846" TopLine="9832"/>
+      </Position11>
+      <Position12>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="9847" TopLine="9832"/>
+      </Position12>
+      <Position13>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="7967" TopLine="7953"/>
+      </Position13>
+      <Position14>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="5247" Column="19" TopLine="5232"/>
+      </Position14>
+      <Position15>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="784" Column="37" TopLine="770"/>
+      </Position15>
+      <Position16>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="772" Column="34" TopLine="758"/>
+      </Position16>
+      <Position17>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="1781" Column="37" TopLine="1775"/>
+      </Position17>
+      <Position18>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="5049" Column="19" TopLine="5047"/>
+      </Position18>
+      <Position19>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="734" Column="40" TopLine="731"/>
+      </Position19>
+      <Position20>
+        <Filename Value="Main.pas"/>
+        <Caret Line="91" Column="75" TopLine="83"/>
+      </Position20>
+      <Position21>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="1061" Column="60" TopLine="1053"/>
+      </Position21>
+      <Position22>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="6031" Column="15" TopLine="6017"/>
+      </Position22>
+    </JumpHistory>
+  </ProjectSession>
+</CONFIG>
