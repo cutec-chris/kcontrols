@@ -3,11 +3,12 @@
   <ProjectSession>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="6">
+    <Units Count="16">
       <Unit0>
         <Filename Value="KMemoEditorLaz.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UsageCount Value="20"/>
+        <CursorPos X="23" Y="12"/>
+        <UsageCount Value="26"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit0>
@@ -18,9 +19,9 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="24"/>
-        <CursorPos X="19" Y="41"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="26"/>
+        <CursorPos X="18" Y="47"/>
+        <UsageCount Value="26"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
@@ -30,22 +31,20 @@
         <ComponentName Value="KMemoFrame"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="2"/>
-        <TopLine Value="510"/>
-        <CursorPos X="17" Y="538"/>
-        <UsageCount Value="10"/>
+        <EditorIndex Value="9"/>
+        <TopLine Value="573"/>
+        <CursorPos X="22" Y="586"/>
+        <UsageCount Value="13"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="../../../../../../../../lazarus/lcl/forms.pp"/>
         <UnitName Value="Forms"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="-1"/>
         <TopLine Value="1387"/>
         <CursorPos X="15" Y="1401"/>
-        <UsageCount Value="10"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="13"/>
       </Unit3>
       <Unit4>
         <Filename Value="../../../../../../../../lazarus/lcl/include/application.inc"/>
@@ -62,8 +61,89 @@
         <CursorPos X="15" Y="149"/>
         <UsageCount Value="10"/>
       </Unit5>
+      <Unit6>
+        <Filename Value="../../source/kprintsetup.pas"/>
+        <EditorIndex Value="8"/>
+        <TopLine Value="188"/>
+        <CursorPos Y="202"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="../../source/kmemo.pas"/>
+        <EditorIndex Value="10"/>
+        <TopLine Value="5047"/>
+        <CursorPos Y="5055"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <EditorIndex Value="7"/>
+        <TopLine Value="348"/>
+        <CursorPos X="18" Y="360"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="../../../../../../../../fpc/trunk/rtl/objpas/classes/classesh.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="961"/>
+        <CursorPos X="15" Y="975"/>
+        <UsageCount Value="10"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="../../../../../../../../fpc/trunk/rtl/objpas/classes/streams.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="714"/>
+        <CursorPos X="3" Y="717"/>
+        <UsageCount Value="10"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="../../source/kmemohtm.pas"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="19"/>
+        <CursorPos X="51" Y="27"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="../../source/kres.pas"/>
+        <EditorIndex Value="6"/>
+        <TopLine Value="16"/>
+        <CursorPos Y="132"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="../../../../../../../../lazarus/components/turbopower_ipro/iphtml.pas"/>
+        <UnitName Value="IpHtml"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="388"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="../../../../../../../../fpc/trunk/packages/fcl-xml/src/dom_html.pp"/>
+        <UnitName Value="DOM_HTML"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="636"/>
+        <CursorPos X="29" Y="632"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="../../../../../../../../fpc/trunk/packages/fcl-xml/src/dom.pp"/>
+        <UnitName Value="DOM"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="470"/>
+        <CursorPos X="46" Y="477"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit15>
     </Units>
-    <JumpHistory Count="2" HistoryIndex="1">
+    <JumpHistory Count="23" HistoryIndex="22">
       <Position1>
         <Filename Value="Main.pas"/>
         <Caret Line="41" Column="19" TopLine="24"/>
@@ -72,6 +152,89 @@
         <Filename Value="../../source/kmemofrm.pas"/>
         <Caret Line="538" Column="25" TopLine="525"/>
       </Position2>
+      <Position3>
+        <Filename Value="../../source/kmemofrm.pas"/>
+        <Caret Line="219" Column="11" TopLine="204"/>
+      </Position3>
+      <Position4>
+        <Filename Value="KMemoEditorLaz.lpr"/>
+      </Position4>
+      <Position5>
+        <Filename Value="Main.pas"/>
+        <Caret Line="44" Column="21"/>
+      </Position5>
+      <Position6>
+        <Filename Value="Main.pas"/>
+        <Caret Line="41" Column="18" TopLine="18"/>
+      </Position6>
+      <Position7>
+        <Filename Value="Main.pas"/>
+        <Caret Line="44" Column="14" TopLine="24"/>
+      </Position7>
+      <Position8>
+        <Filename Value="../../source/kmemofrm.pas"/>
+        <Caret Line="586" Column="22" TopLine="573"/>
+      </Position8>
+      <Position9>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="5040" Column="12" TopLine="5036"/>
+      </Position9>
+      <Position10>
+        <Filename Value="Main.pas"/>
+        <Caret Line="47" Column="50" TopLine="32"/>
+      </Position10>
+      <Position11>
+        <Filename Value="Main.pas"/>
+        <Caret Line="49" TopLine="32"/>
+      </Position11>
+      <Position12>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <Caret Line="1967" TopLine="1952"/>
+      </Position12>
+      <Position13>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <Caret Line="1971" Column="19" TopLine="1953"/>
+      </Position13>
+      <Position14>
+        <Filename Value="Main.pas"/>
+        <Caret Line="47" Column="18" TopLine="26"/>
+      </Position14>
+      <Position15>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <Caret Line="1971" Column="19" TopLine="1953"/>
+      </Position15>
+      <Position16>
+        <Filename Value="../../source/kmemohtm.pas"/>
+        <Caret Line="123" Column="37" TopLine="102"/>
+      </Position16>
+      <Position17>
+        <Filename Value="../../source/kmemortf.pas"/>
+        <Caret Line="2055" Column="12" TopLine="2043"/>
+      </Position17>
+      <Position18>
+        <Filename Value="../../source/kmemohtm.pas"/>
+        <Caret Line="127" Column="13" TopLine="110"/>
+      </Position18>
+      <Position19>
+        <Filename Value="../../source/kmemohtm.pas"/>
+        <Caret Line="38" Column="35" TopLine="27"/>
+      </Position19>
+      <Position20>
+        <Filename Value="../../source/kmemohtm.pas"/>
+        <Caret Line="27" Column="55" TopLine="19"/>
+      </Position20>
+      <Position21>
+        <Filename Value="../../../../../../../../fpc/trunk/packages/fcl-xml/src/dom_html.pp"/>
+        <Caret Line="978" Column="29" TopLine="956"/>
+      </Position21>
+      <Position22>
+        <Filename Value="../../../../../../../../fpc/trunk/packages/fcl-xml/src/dom_html.pp"/>
+        <Caret Line="632" Column="29" TopLine="618"/>
+      </Position22>
+      <Position23>
+        <Filename Value="../../../../../../../../fpc/trunk/packages/fcl-xml/src/dom.pp"/>
+        <Caret Line="523" Column="28" TopLine="521"/>
+      </Position23>
     </JumpHistory>
   </ProjectSession>
 </CONFIG>
