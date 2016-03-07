@@ -9,7 +9,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="2"/>
         <CursorPos Y="15"/>
-        <UsageCount Value="27"/>
+        <UsageCount Value="30"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -18,18 +18,19 @@
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <TopLine Value="83"/>
-        <CursorPos X="75" Y="91"/>
-        <UsageCount Value="27"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="110"/>
+        <CursorPos X="23" Y="116"/>
+        <UsageCount Value="30"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="../../source/kmemo.pas"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="506"/>
-        <CursorPos X="3" Y="532"/>
-        <UsageCount Value="13"/>
+        <TopLine Value="633"/>
+        <CursorPos X="3" Y="647"/>
+        <UsageCount Value="14"/>
         <Loaded Value="True"/>
       </Unit2>
       <Unit3>
@@ -44,7 +45,7 @@
         <EditorIndex Value="4"/>
         <TopLine Value="53"/>
         <CursorPos X="55" Y="73"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit4>
       <Unit5>
@@ -52,23 +53,23 @@
         <EditorIndex Value="1"/>
         <TopLine Value="237"/>
         <CursorPos X="14" Y="254"/>
-        <UsageCount Value="12"/>
+        <UsageCount Value="13"/>
         <Loaded Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="../../source/kmemortf.pas"/>
         <EditorIndex Value="8"/>
-        <TopLine Value="2689"/>
+        <TopLine Value="2648"/>
         <CursorPos X="35" Y="2724"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="../../../../../../../../lazarus/components/turbopower_ipro/iphtml.pas"/>
         <UnitName Value="IpHtml"/>
-        <EditorIndex Value="11"/>
+        <EditorIndex Value="10"/>
         <CursorPos Y="7364"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit7>
       <Unit8>
@@ -77,14 +78,14 @@
         <EditorIndex Value="5"/>
         <TopLine Value="22"/>
         <CursorPos X="14" Y="98"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit8>
       <Unit9>
         <Filename Value="../../../OpenRichedit/domdocumentreader.pas"/>
         <EditorIndex Value="6"/>
         <CursorPos X="30" Y="8"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit9>
       <Unit10>
@@ -93,7 +94,7 @@
         <EditorIndex Value="7"/>
         <TopLine Value="19"/>
         <CursorPos X="14" Y="20"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit10>
       <Unit11>
@@ -103,141 +104,139 @@
       </Unit11>
       <Unit12>
         <Filename Value="../../kmemo_readme.txt"/>
-        <EditorIndex Value="10"/>
-        <UsageCount Value="11"/>
+        <EditorIndex Value="9"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="None"/>
       </Unit12>
       <Unit13>
         <Filename Value="../../../../../../../../lazarus/lcl/include/control.inc"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="9"/>
-        <TopLine Value="3651"/>
-        <CursorPos Y="3666"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="3765"/>
+        <CursorPos X="15" Y="3782"/>
         <UsageCount Value="10"/>
-        <Loaded Value="True"/>
       </Unit13>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="9847" TopLine="9832"/>
+        <Caret Line="1693" Column="50" TopLine="1671"/>
       </Position1>
       <Position2>
         <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="7967" TopLine="7953"/>
+        <Caret Line="1989" Column="40" TopLine="1967"/>
       </Position2>
       <Position3>
         <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="5247" Column="19" TopLine="5232"/>
+        <Caret Line="2013" Column="49" TopLine="1991"/>
       </Position3>
       <Position4>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="784" Column="37" TopLine="770"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="223" Column="28" TopLine="209"/>
       </Position4>
       <Position5>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="772" Column="34" TopLine="758"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="230" Column="28" TopLine="216"/>
       </Position5>
       <Position6>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="1781" Column="37" TopLine="1775"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="115" Column="19" TopLine="110"/>
       </Position6>
       <Position7>
         <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="5049" Column="19" TopLine="5047"/>
+        <Caret Line="1312" Column="50" TopLine="1300"/>
       </Position7>
       <Position8>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="734" Column="40" TopLine="731"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="114" Column="36" TopLine="110"/>
       </Position8>
       <Position9>
         <Filename Value="Main.pas"/>
-        <Caret Line="91" Column="75" TopLine="83"/>
+        <Caret Line="123" Column="32" TopLine="110"/>
       </Position9>
       <Position10>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="1061" Column="60" TopLine="1053"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="120" Column="11" TopLine="104"/>
       </Position10>
       <Position11>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="6031" Column="15" TopLine="6017"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="122" Column="40" TopLine="108"/>
       </Position11>
       <Position12>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="151" Column="45" TopLine="136"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="131" Column="33" TopLine="108"/>
       </Position12>
       <Position13>
         <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="1155" Column="35" TopLine="1132"/>
+        <Caret Line="1940" Column="29" TopLine="1928"/>
       </Position13>
       <Position14>
-        <Filename Value="../../source/kmemo.pas"/>
-        <Caret Line="11268" Column="22" TopLine="11264"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="131" Column="33" TopLine="108"/>
       </Position14>
       <Position15>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="5" Column="35"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="122" Column="36" TopLine="108"/>
       </Position15>
       <Position16>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="25" Column="16" TopLine="20"/>
+        <Filename Value="../../source/kmemo.pas"/>
+        <Caret Line="984" Column="32" TopLine="970"/>
       </Position16>
       <Position17>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="233" Column="39" TopLine="214"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="122" Column="36" TopLine="108"/>
       </Position17>
       <Position18>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="41" Column="32" TopLine="30"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="134" TopLine="108"/>
       </Position18>
       <Position19>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="1036" TopLine="1035"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="122" Column="30" TopLine="108"/>
       </Position19>
       <Position20>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="38" Column="16" TopLine="20"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="132" Column="7" TopLine="118"/>
       </Position20>
       <Position21>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="64" Column="42" TopLine="45"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="135" Column="44" TopLine="119"/>
       </Position21>
       <Position22>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="40" Column="17" TopLine="26"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="133" TopLine="119"/>
       </Position22>
       <Position23>
-        <Filename Value="../../source/kmemortf.pas"/>
-        <Caret Line="2055" Column="11" TopLine="2037"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="135" TopLine="119"/>
       </Position23>
       <Position24>
-        <Filename Value="../../../../../../../../lazarus/components/turbopower_ipro/iphtml.pas"/>
-        <Caret Line="80" Column="42" TopLine="67"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="132" TopLine="119"/>
       </Position24>
       <Position25>
-        <Filename Value="../../../../../../../../lazarus/components/turbopower_ipro/iphtml.pas"/>
-        <Caret Line="4597" Column="8" TopLine="4579"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="133" TopLine="119"/>
       </Position25>
       <Position26>
-        <Filename Value="../../../../../../../../lazarus/components/turbopower_ipro/iphtml.pas"/>
-        <Caret Line="7398" Column="12" TopLine="7393"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="135" TopLine="119"/>
       </Position26>
       <Position27>
-        <Filename Value="../../source/kmemohtm.pas"/>
-        <Caret Line="36" Column="5" TopLine="26"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="132" TopLine="119"/>
       </Position27>
       <Position28>
-        <Filename Value="../../../OpenRichedit/domlayout.pas"/>
-        <Caret Line="275" Column="14" TopLine="266"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="133" TopLine="119"/>
       </Position28>
       <Position29>
-        <Filename Value="../../../OpenRichedit/domdocumentreader.pas"/>
-        <Caret Line="8" Column="30"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="135" TopLine="119"/>
       </Position29>
       <Position30>
-        <Filename Value="../../source/kmemortf.pas"/>
-        <Caret Line="2724" Column="35" TopLine="2689"/>
+        <Filename Value="Main.pas"/>
+        <Caret Line="132" TopLine="119"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>

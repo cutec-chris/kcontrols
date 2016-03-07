@@ -88,6 +88,15 @@ object MainForm: TMainForm
     OnClick = BUTestClick
     TabOrder = 4
   end
+  object Button1: TButton
+    Left = 504
+    Height = 25
+    Top = 544
+    Width = 75
+    Caption = 'Button1'
+    OnClick = Button1Click
+    TabOrder = 5
+  end
   object KPrintSetupDialog1: TKPrintSetupDialog
     left = 448
     top = 536
