@@ -408,7 +408,11 @@ type
     Application: TApplication;
     Screen: TScreen;
     GlobalNameSpace: IReadWriteSync;
+  {$IFDEF DARWIN}
+    MainThreadID: TThreadID;
+  {$ELSE}
     MainThreadID: LongWord;
+  {$ENDIF}
     IntConstList: TThreadList;
   {$IFDEF FPC}
     WidgetSet: TWidgetSet;
@@ -2720,4 +2724,4 @@ begin
 {$ENDIF}
 end;
 
-end.
+end.
