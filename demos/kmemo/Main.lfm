@@ -1,5 +1,5 @@
 object MainForm: TMainForm
-  Left = 379
+  Left = 399
   Height = 576
   Top = 217
   Width = 1055
@@ -8,7 +8,7 @@ object MainForm: TMainForm
   ClientWidth = 1055
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '1.7'
+  LCLVersion = '1.5'
   Visible = True
   object PNMain: TPanel
     Left = 0
@@ -87,15 +87,6 @@ object MainForm: TMainForm
     Caption = 'Test'
     OnClick = BUTestClick
     TabOrder = 4
-  end
-  object Button1: TButton
-    Left = 504
-    Height = 25
-    Top = 544
-    Width = 75
-    Caption = 'Button1'
-    OnClick = Button1Click
-    TabOrder = 5
   end
   object KPrintSetupDialog1: TKPrintSetupDialog
     left = 448

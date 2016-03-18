@@ -9,7 +9,7 @@ uses
   Windows,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, KMemoFrm, KMemo,kmemohtm;
+  Dialogs, KMemoFrm, KMemo;
 
 type
 
@@ -37,19 +37,11 @@ implementation
 {$ENDIF}
 
 procedure TMainForm.FormCreate(Sender: TObject);
-var
-  Reader: TKMemoHTMLReader;
 begin
   FFrame := TKMemoFrame.Create(Self);
   FFrame.Align := alClient;
   FFrame.Parent := Self;
-  //FFrame.OpenFile('kmemo_manual.rtf');
-  Reader := TKMemoHTMLReader.Create(FFrame.Editor);
-  try
-    Reader.LoadFromFile('kmemo_test.htm');
-  finally
-    Reader.Free;
-  end;
+  FFrame.OpenFile('kmemo_manual.rtf');
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);

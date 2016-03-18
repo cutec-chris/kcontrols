@@ -3,7 +3,6 @@
   <Package Version="4">
     <PathDelim Value="\"/>
     <Name Value="KControlsLaz"/>
-    <Type Value="RunAndDesignTime"/>
     <Author Value="TK (tk@tkweb.eu)"/>
     <CompilerOptions>
       <Version Value="11"/>
@@ -36,11 +35,11 @@ from using this code."/>
     <Files Count="39">
       <Item1>
         <Filename Value="..\..\source\kfunctions.pas"/>
-        <UnitName Value="kfunctions"/>
+        <UnitName Value="KFunctions"/>
       </Item1>
       <Item2>
         <Filename Value="..\..\source\kgraphics.pas"/>
-        <UnitName Value="kgraphics"/>
+        <UnitName Value="KGraphics"/>
       </Item2>
       <Item3>
         <Filename Value="..\..\source\kcontrols.lrs"/>
@@ -48,15 +47,15 @@ from using this code."/>
       </Item3>
       <Item4>
         <Filename Value="..\..\source\kcontrols.pas"/>
-        <UnitName Value="kcontrols"/>
+        <UnitName Value="KControls"/>
       </Item4>
       <Item5>
         <Filename Value="..\..\source\kdialogs.pas"/>
-        <UnitName Value="kdialogs"/>
+        <UnitName Value="KDialogs"/>
       </Item5>
       <Item6>
         <Filename Value="..\..\source\keditcommon.pas"/>
-        <UnitName Value="keditcommon"/>
+        <UnitName Value="KEditCommon"/>
       </Item6>
       <Item7>
         <Filename Value="..\..\source\kgrids.lrs"/>
@@ -64,15 +63,15 @@ from using this code."/>
       </Item7>
       <Item8>
         <Filename Value="..\..\source\kgrids.pas"/>
-        <UnitName Value="kgrids"/>
+        <UnitName Value="KGrids"/>
       </Item8>
       <Item9>
         <Filename Value="..\..\source\khexeditor.pas"/>
-        <UnitName Value="khexeditor"/>
+        <UnitName Value="KHexEditor"/>
       </Item9>
       <Item10>
         <Filename Value="..\..\source\kicon.pas"/>
-        <UnitName Value="kicon"/>
+        <UnitName Value="KIcon"/>
       </Item10>
       <Item11>
         <Filename Value="..\..\source\kprintpreview.lfm"/>
@@ -84,7 +83,7 @@ from using this code."/>
       </Item12>
       <Item13>
         <Filename Value="..\..\source\kprintpreview.pas"/>
-        <UnitName Value="kprintpreview"/>
+        <UnitName Value="KPrintPreview"/>
       </Item13>
       <Item14>
         <Filename Value="..\..\source\kprintsetup.lfm"/>
@@ -96,11 +95,11 @@ from using this code."/>
       </Item15>
       <Item16>
         <Filename Value="..\..\source\kprintsetup.pas"/>
-        <UnitName Value="kprintsetup"/>
+        <UnitName Value="KPrintSetup"/>
       </Item16>
       <Item17>
         <Filename Value="..\..\source\kwidewinprocs.pas"/>
-        <UnitName Value="kwidewinprocs"/>
+        <UnitName Value="KWideWinProcs"/>
       </Item17>
       <Item18>
         <Filename Value="kcontrolsdesign.lrs"/>
@@ -113,7 +112,7 @@ from using this code."/>
       </Item19>
       <Item20>
         <Filename Value="..\..\source\kdbgrids.pas"/>
-        <UnitName Value="kdbgrids"/>
+        <UnitName Value="KDBGrids"/>
       </Item20>
       <Item21>
         <Filename Value="..\..\source\kcontrols.inc"/>
@@ -121,11 +120,11 @@ from using this code."/>
       </Item21>
       <Item22>
         <Filename Value="..\..\source\kedits.pas"/>
-        <UnitName Value="kedits"/>
+        <UnitName Value="KEdits"/>
       </Item22>
       <Item23>
         <Filename Value="..\..\source\kmessagebox.pas"/>
-        <UnitName Value="kmessagebox"/>
+        <UnitName Value="KMessageBox"/>
       </Item23>
       <Item24>
         <Filename Value="..\..\source\kmessagebox.lrs"/>
@@ -133,23 +132,23 @@ from using this code."/>
       </Item24>
       <Item25>
         <Filename Value="..\..\source\klog.pas"/>
-        <UnitName Value="klog"/>
+        <UnitName Value="KLog"/>
       </Item25>
       <Item26>
         <Filename Value="..\..\source\kprogress.pas"/>
-        <UnitName Value="kprogress"/>
+        <UnitName Value="KProgress"/>
       </Item26>
       <Item27>
         <Filename Value="..\..\source\klabels.pas"/>
-        <UnitName Value="klabels"/>
+        <UnitName Value="KLabels"/>
       </Item27>
       <Item28>
         <Filename Value="..\..\source\kmemo.pas"/>
-        <UnitName Value="kmemo"/>
+        <UnitName Value="KMemo"/>
       </Item28>
       <Item29>
         <Filename Value="..\..\source\kbuttons.pas"/>
-        <UnitName Value="kbuttons"/>
+        <UnitName Value="KButtons"/>
       </Item29>
       <Item30>
         <Filename Value="..\..\source\kmemodlghyperlink.lfm"/>
@@ -157,7 +156,7 @@ from using this code."/>
       </Item30>
       <Item31>
         <Filename Value="..\..\source\kmemodlghyperlink.pas"/>
-        <UnitName Value="kmemodlghyperlink"/>
+        <UnitName Value="KMemoDlgHyperlink"/>
       </Item31>
       <Item32>
         <Filename Value="..\..\source\kmemodlgparastyle.lfm"/>
@@ -165,7 +164,7 @@ from using this code."/>
       </Item32>
       <Item33>
         <Filename Value="..\..\source\kmemodlgparastyle.pas"/>
-        <UnitName Value="kmemodlgparastyle"/>
+        <UnitName Value="KMemoDlgParaStyle"/>
       </Item33>
       <Item34>
         <Filename Value="..\..\source\kmemodlgtextstyle.lfm"/>
@@ -173,7 +172,7 @@ from using this code."/>
       </Item34>
       <Item35>
         <Filename Value="..\..\source\kmemodlgtextstyle.pas"/>
-        <UnitName Value="kmemodlgtextstyle"/>
+        <UnitName Value="KMemoDlgTextStyle"/>
       </Item35>
       <Item36>
         <Filename Value="..\..\source\kmemofrm.lfm"/>
@@ -184,14 +183,15 @@ from using this code."/>
         <UnitName Value="kmemofrm"/>
       </Item37>
       <Item38>
-        <Filename Value="..\..\source\kmemohtm.pas"/>
-        <UnitName Value="kmemohtm"/>
+        <Filename Value="..\..\source\kmemortf.pas"/>
+        <UnitName Value="KMemoRTF"/>
       </Item38>
       <Item39>
         <Filename Value="..\..\source\kpagecontrol.pas"/>
         <UnitName Value="kpagecontrol"/>
       </Item39>
     </Files>
+    <Type Value="RunAndDesignTime"/>
     <RequiredPkgs Count="3">
       <Item1>
         <PackageName Value="Printer4Lazarus"/>
@@ -215,4 +215,4 @@ from using this code."/>
       <_ExternHelp Items="Count"/>
     </CustomOptions>
   </Package>
-</CONFIG>
+</CONFIG>

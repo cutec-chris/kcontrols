@@ -22,7 +22,6 @@ type
     BUtest: TButton;
     BUPreview: TButton;
     BUPrint: TButton;
-    Button1: TButton;
     PNMain: TPanel;
     Panel1: TPanel;
     Panel2: TPanel;
@@ -30,7 +29,6 @@ type
     Splitter1: TSplitter;
     KPrintPreviewDialog1: TKPrintPreviewDialog;
     KPrintSetupDialog1: TKPrintSetupDialog;
-    procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure KMemo1DropFiles(Sender: TObject; X, Y: Integer; Files: TStrings);
@@ -102,38 +100,9 @@ begin
   KMemo2.ContentPadding.Right := 20;
   KMemo2.ContentPadding.Bottom := 20;
   KMemo2.Align := alClient;
-  KMemo2.Options := KMemo2.Options + [eoShowFormatting];
+  KMemo2.Options := KMemo2.Options + [eoShowFormatting, eoWantTab];
   KMemo2.Parent := Panel2;
   KMemo2.Clear;
-end;
-
-procedure TMainForm.Button1Click(Sender: TObject);
-var
-  aStyle: TKMemoParaStyle;
-  Result: Boolean;
-  a: Integer;
-  function LoopBlocks(aBlock : TKMemoContainer) : Boolean;
-  var
-    i: Integer;
-  begin
-    Result := aBlock.ParaStyle<>aStyle;
-    if not Result then
-      for i := 0 to aBlock.Blocks.Count-1 do
-        begin
-          if aBlock.Blocks[i] is TKMemoContainer then
-            Result := LoopBlocks(aBlock.Blocks[i] as TKMemoContainer)
-          else Result := Result or (aBlock.Blocks[i].ParaStyle<>aStyle);
-          if Result then break;
-        end;
-  end;
-
-begin
-  aStyle := KMemo1.ParaStyle;
-  Result := False;
-  for a := 0 to KMemo1.Blocks.Count-1 do
-    if KMemo1.Blocks[a] is TKMemoContainer then
-      Result := LoopBlocks(KMemo1.Blocks[a] as TKMemoContainer)
-    else Result := Result or (KMemo1.Blocks[a].ParaStyle<>aStyle);
 end;
 
 procedure TMainForm.FormResize(Sender: TObject);
@@ -179,7 +148,7 @@ end;
 
 procedure TMainForm.BUTestClick(Sender: TObject);
 begin
-  Test6;
+  Test24;
 end;
 
 procedure TMainForm.Test1;

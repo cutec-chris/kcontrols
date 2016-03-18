@@ -6,7 +6,7 @@ object KMemoFrame: TKMemoFrame
   ClientHeight = 435
   ClientWidth = 597
   TabOrder = 0
-  DesignLeft = 837
+  DesignLeft = 840
   DesignTop = 368
   object Editor: TKMemo
     Left = 0
@@ -14,10 +14,6 @@ object KMemoFrame: TKMemoFrame
     Top = 46
     Width = 597
     Align = alClient
-    ContentPadding.Left = 5
-    ContentPadding.Top = 5
-    ContentPadding.Right = 5
-    ContentPadding.Bottom = 5
     Font.Color = clWindowText
     Font.Height = -11
     Font.Name = 'Tahoma'
