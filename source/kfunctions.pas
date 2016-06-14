@@ -176,6 +176,11 @@ const
   cDirectoryDelimiter = '/';
 {$ENDIF}
 
+  cUTF16FirstSurrogateBegin = $D800;
+  cUTF16FirstSurrogateEnd = $DBFF;
+  cUTF16SecondSurrogateBegin = $DC00;
+  cUTF16SecondSurrogateEnd = $DFFF;
+
 type
 {$IFNDEF FPC}
   { @exclude }
@@ -362,7 +367,7 @@ type
   PKText = PChar;
 {$ELSE}
  {$IFDEF STRING_IS_UNICODE}
-  { TKString is UnicodeString in unicode aware Delphi. }
+  { TKString is UnicodeString (UTF16) in unicode aware Delphi. }
   TKString = string;
   { TKChar is Char in unicode aware Delphi. }
   TKChar = Char;
@@ -408,11 +413,7 @@ type
     Application: TApplication;
     Screen: TScreen;
     GlobalNameSpace: IReadWriteSync;
-  {$IFDEF DARWIN}
-    MainThreadID: TThreadID;
-  {$ELSE}
     MainThreadID: LongWord;
-  {$ENDIF}
     IntConstList: TThreadList;
   {$IFDEF FPC}
     WidgetSet: TWidgetSet;
@@ -569,7 +570,7 @@ procedure EditSelectAllFocused;
 { Enables or disables all children of AParent depending on AEnabled.
   If ARecursive is True then the function applies to whole tree of controls
   owned by AParent. }
-procedure EnableControls(AParent: TWinControl; AEnabled, ARecursive: Boolean);
+procedure EnableControls(AParent: TWinControl; AEnabled: Boolean; ARecursive: Boolean = True);
 
 { Ensures the path given by APath has slash at the end. }
 procedure EnsureLastPathSlash(var APath: string);
@@ -611,6 +612,9 @@ procedure Exchange(var Value1, Value2: Char); overload;
 
 { Fills the message record. }
 function FillMessage(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): TLMessage;
+
+{ Searches for a child control. Can search recursively. }
+function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean = True): TControl;
 
 { Formats the given currency value with to specified parameters. Not thread safe. }
 function FormatCurrency(Value: Currency; const AFormat: TKCurrencyFormat): TKString;
@@ -769,26 +773,36 @@ procedure StripLastPathSlash(var APath: string);
 { Ensures the path given by APath has no slash at the end. }
 function StripLastPathSlashFnc(const APath: string): string;
 
-{ Returns next character index for given null terminated string and character index.
-  Takes MBCS (UTF8 in Lazarus) into account. }
+{ Returns next character index for given string and character index.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 function StrNextCharIndex(const AText: TKString; Index: Integer): Integer;
 
-{ Returns previous character index for given null terminated string and character index.
-  Takes MBCS (UTF8 in Lazarus) into account. }
+{ Returns previous character index for given string and character index.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 function StrPreviousCharIndex(const AText: TKString; Index: Integer): Integer;
 
+{ Converts byte index to code point index for given string and byte index.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
+function StrByteIndexToCPIndex(const AText: TKString; ByteIndex: Integer): Integer;
+
+{ Converts code point index to byte index for given string and code point index.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
+function StrCPIndexToByteIndex(const AText: TKString; CPIndex: Integer): Integer;
+
 { Returns the index for given string where character at given index begins.
-  Takes MBCS (UTF8 in Lazarus) into account. }
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 function StringCharBegin(const AText: TKString; Index: Integer): Integer;
 
-{ Returns the number of characters in a string. Under Delphi it equals Length,
-  under Lazarus it equals UTF8Length. }
+{ Returns the number of characters in a string.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 function StringLength(const AText: TKString): Integer;
 
-{ Performs standard Copy operation. Takes MBCS (UTF8 in Lazarus) into account. }
+{ Performs standard Copy operation.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 function StringCopy(const ASource: TKString; At, Count: Integer): TKString;
 
-{ Performs standard Delete operation. Takes MBCS (UTF8 in Lazarus) into account. }
+{ Performs standard Delete operation.
+  Takes MBCS (UTF16 in Delphi and UTF8 in Lazarus) into account. }
 procedure StringDelete(var ASource: TKString; At, Count: Integer);
 
 { Trims characters specified by ASet from the beginning and end of AText.
@@ -980,9 +994,11 @@ begin
     begin
       Clipboard.GetFormat(Fmt, AStream);
       Result := True;
-    end
-    else
-      AText := AText;
+    end else
+    begin
+      AText := AsText;
+      Result := AText <> '';
+    end;
   end;
 {$ELSE}
   Fmt := RegisterClipboardFormat(PChar(AFormat));
@@ -1506,6 +1522,31 @@ begin
   Result.Result := 0;
 end;
 
+function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean): TControl;
+
+  function DoSearch(AParent: TWinControl): TControl;
+  var
+    I: Integer;
+    Ctrl: TControl;
+  begin
+    Result := nil;
+    if AParent <> nil then
+      for I := 0 to AParent.ControlCount - 1 do
+      begin
+        Ctrl := AParent.Controls[I];
+        if Ctrl.Name = AName then
+          Result := Ctrl
+        else if ARecursive and (Ctrl is TWinControl) then
+          Result := DoSearch(TWinControl(Ctrl));
+        if Result <> nil then
+          Break;
+      end;
+  end;
+
+begin
+  Result := DoSearch(AParent);
+end;
+
 function FormatCurrency(Value: Currency; const AFormat: TKCurrencyFormat): TKString;
 var
   Fmt: string;
@@ -1534,7 +1575,9 @@ begin
   Ctx.GlobalNameSpace := Classes.GlobalNameSpace;
 //  Ctx.IntConstList := Classes.IntConstList;
 {$IFDEF FPC}
+ {$IFnDEF DARWIN}
   Ctx.MainThreadID := Classes.MainThreadID;
+ {$ENDIF}
   Ctx.DragManager := Controls.DragManager;
   Ctx.WidgetSet := InterfaceBase.WidgetSet;
 {$ENDIF}
@@ -2359,7 +2402,9 @@ begin
   Classes.GlobalNameSpace := Ctx.GlobalNameSpace;
 {$IFDEF FPC}
 //  Classes.IntConstList := Ctx.IntConstList;
+{$IFnDEF DARWIN}
   Classes.MainThreadID := Ctx.MainThreadID;
+{$ENDIF}
   Controls.DragManager := Ctx.DragManager;
   InterfaceBase.WidgetSet := Ctx.WidgetSet;
 {$ENDIF}
@@ -2417,7 +2462,10 @@ begin
 {$IFDEF FPC}
   Result := Index + UTF8CharacterLength(@AText[Index]);
 {$ELSE}
-  Result := Index + 1; // neglecting surrogate pairs
+  if (Word(AText[Index]) >= cUTF16FirstSurrogateBegin) and (Word(AText[Index]) <= cUTF16FirstSurrogateEnd) then
+    Result := Index + 2
+  else
+    Result := Index + 1;
 {$ENDIF}
 end;
 
@@ -2426,8 +2474,49 @@ begin
 {$IFDEF FPC}
   Result := Index - UTF8CharacterLength(@AText[StringCharBegin(AText, Index - 1)]);
 {$ELSE}
-  Result := Index - 1; // neglecting surrogate pairs
+  if (Word(AText[Index - 1]) >= cUTF16SecondSurrogateBegin) and (Word(AText[Index - 1]) <= cUTF16SecondSurrogateEnd) then
+    Result := Index - 2
+  else
+    Result := Index - 1;
 {$ENDIF}
+end;
+
+function StrByteIndexToCPIndex(const AText: TKString; ByteIndex: Integer): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  I := 1;
+  while I < ByteIndex do
+  begin
+  {$IFDEF FPC}
+    Inc(I, UTF8CharacterLength(@AText[I]));
+  {$ELSE}
+    if (Word(AText[I]) >= cUTF16FirstSurrogateBegin) or (Word(AText[I]) > cUTF16FirstSurrogateEnd) then
+      Inc(I, 2)
+    else
+      Inc(I);
+  {$ENDIF}
+    Inc(Result);
+  end;
+end;
+
+function StrCPIndexToByteIndex(const AText: TKString; CPIndex: Integer): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to CPIndex do
+  begin
+{$IFDEF FPC}
+    Inc(Result, UTF8CharacterLength(@AText[Result]));
+{$ELSE}
+    if (Word(AText[Result]) >= cUTF16FirstSurrogateBegin) and (Word(AText[Result]) <= cUTF16FirstSurrogateEnd) then
+      Inc(Result, 2)
+    else
+      Inc(Result);
+{$ENDIF}
+  end;
 end;
 
 function StringCharBegin(const AText: TKString; Index: Integer): Integer;
@@ -2435,34 +2524,54 @@ begin
 {$IFDEF FPC}
   Result := UTF8CharToByteIndex(PChar(AText), Length(AText), Index)
 {$ELSE}
-  Result := Index // neglecting surrogate pairs
+  if (Word(AText[Index - 1]) >= cUTF16SecondSurrogateBegin) and (Word(AText[Index - 1]) <= cUTF16SecondSurrogateEnd) then
+    Result := Index - 1
+  else
+    Result := Index
 {$ENDIF}
 end;
 
 function StringLength(const AText: TKString): Integer;
+var
+  I: Integer;
 begin
 {$IFDEF FPC}
   Result := UTF8Length(AText)
 {$ELSE}
-  Result := Length(AText) // neglecting surrogate pairs
+  Result := 0;
+  for I := 1 to Length(AText) do
+    if (Word(AText[I]) < cUTF16SecondSurrogateBegin) or (Word(AText[I]) > cUTF16SecondSurrogateEnd) then
+      Inc(Result);
 {$ENDIF}
 end;
 
 function StringCopy(const ASource: TKString; At, Count: Integer): TKString;
+{$IFnDEF FPC}
+var
+  ByteFrom, ByteTo: Integer;
+{$ENDIF}
 begin
 {$IFDEF FPC}
   Result := UTF8Copy(ASource, At, Count);
 {$ELSE}
-  Result := Copy(ASource, At, Count);
+  ByteFrom := StrCPIndexToByteIndex(ASource, At);
+  ByteTo := StrCPIndexToByteIndex(ASource, At + Count);
+  Result := Copy(ASource, ByteFrom, ByteTo - ByteFrom);
 {$ENDIF}
 end;
 
 procedure StringDelete(var ASource: TKString; At, Count: Integer);
+{$IFnDEF FPC}
+var
+  ByteFrom, ByteTo: Integer;
+{$ENDIF}
 begin
 {$IFDEF FPC}
   UTF8Delete(ASource, At, Count);
 {$ELSE}
-  Delete(ASource, At, Count);
+  ByteFrom := StrCPIndexToByteIndex(ASource, At);
+  ByteTo := StrCPIndexToByteIndex(ASource, At + Count);
+  Delete(ASource, ByteFrom, ByteTo - ByteFrom);
 {$ENDIF}
 end;
 
@@ -2724,4 +2833,4 @@ begin
 {$ENDIF}
 end;
 
-end.
+end.

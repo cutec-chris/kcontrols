@@ -29,7 +29,8 @@ uses
 {$ENDIF}
   SysUtils, Variants, Classes, Graphics, Controls, Forms, Menus,
   Dialogs, ToolWin, ComCtrls, ImgList, KFunctions, KControls, KMemo, ActnList,
-  KDialogs, KMemoDlgParaStyle, KMemoDlgTextStyle, KMemoDlgHyperlink, KMemoDlgNumbering;
+  KDialogs, KMemoDlgParaStyle, KMemoDlgTextStyle, KMemoDlgHyperlink,
+  KMemoDlgImage, KMemoDlgNumbering;
 
 type
 
@@ -37,8 +38,11 @@ type
 
   TKMemoFrame = class(TFrame)
     ACParaNumbering: TAction;
+    ACEditImage: TAction;
+    ACInsertImage: TAction;
     Editor: TKMemo;
     ILMain: TImageList;
+    MIEditImage: TMenuItem;
     ToBFirst: TToolBar;
     ToBNew: TToolButton;
     ToBOpen: TToolButton;
@@ -115,6 +119,7 @@ type
     ACFontSubscript: TAction;
     ToBFontSuperscript: TToolButton;
     ToBSelectAll: TToolButton;
+    ToBInsertImage: TToolButton;
     procedure ACFileNewExecute(Sender: TObject);
     procedure ACFileNewUpdate(Sender: TObject);
     procedure ACFileOpenExecute(Sender: TObject);
@@ -160,6 +165,9 @@ type
     procedure ACFontSuperscriptUpdate(Sender: TObject);
     procedure ACFontSubscriptExecute(Sender: TObject);
     procedure ACFontSubscriptUpdate(Sender: TObject);
+    procedure ACInsertImageExecute(Sender: TObject);
+    procedure ACEditImageUpdate(Sender: TObject);
+    procedure PMMainPopup(Sender: TObject);
   private
     { Private declarations }
     FNewFile: Boolean;
@@ -171,12 +179,15 @@ type
     FFormatCopyTextStyle: TKMemoTextStyle;
     FHyperlinkForm: TKMemoHyperlinkForm;
     FNumberingForm: TKMemoNumberingForm;
+    FImageForm: TKMemoImageForm;
     FParaStyle: TKMemoParaStyle;
     FParaStyleForm: TKMemoParaStyleForm;
     FTextStyle: TKMemoTextStyle;
     FTextStyleForm: TKMemoTextStyleForm;
     procedure AddToMRUFs(const AFileName: TKString); virtual;
     procedure DeleteFromMRUFs(const AFileName: TKString); virtual;
+    function EditImage(AItem: TKMemoBlock): Boolean; virtual;
+    procedure EventEditBlock(AItem: TKMemoBlock; var Result: Boolean);
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -209,6 +220,7 @@ begin
   FFormatCopyParaStyle := TKMemoParaStyle.Create;
   FFormatCopyTextStyle := TKMemoTextStyle.Create;
   FHyperlinkForm := TKMemoHyperlinkForm.Create(Self);
+  FImageForm := TKMemoImageForm.Create(Self);
   FNumberingForm := TKMemoNumberingForm.Create(Self);
   FParaStyle := TKMemoParaStyle.Create;
   FParaStyle.OnChanged := ParaStyleChanged;
@@ -216,6 +228,7 @@ begin
   FTextStyle := TKMemoTextStyle.Create;
   FTextStyle.OnChanged := TextStyleChanged;
   FTextStyleForm := TKMemoTextStyleForm.Create(Self);
+  Editor.OnEditBlock := EventEditBlock;
   OpenNewFile;
 end;
 
@@ -231,6 +244,11 @@ end;
 procedure TKMemoFrame.ACEditHyperlinkUpdate(Sender: TObject);
 begin
   TAction(Sender).Visible := Editor.ActiveInnerBlock is TKMemoHyperlink;
+end;
+
+procedure TKMemoFrame.ACEditImageUpdate(Sender: TObject);
+begin
+  TAction(Sender).Visible := Editor.ActiveInnerBlock is TKMemoImageBlock;
 end;
 
 procedure TKMemoFrame.ACFileNewExecute(Sender: TObject);
@@ -422,6 +440,11 @@ begin
     Hyperlink.Free;
 end;
 
+procedure TKMemoFrame.ACInsertImageExecute(Sender: TObject);
+begin
+  EditImage(Editor.ActiveInnerBlock);
+end;
+
 procedure TKMemoFrame.ACParaCenterExecute(Sender: TObject);
 begin
   FParaStyle.HAlign := halCenter;
@@ -530,6 +553,35 @@ procedure TKMemoFrame.DeleteFromMRUFs(const AFileName: TKString);
 begin
 end;
 
+function TKMemoFrame.EditImage(AItem: TKMemoBlock): Boolean;
+var
+  Image: TKMemoImageBlock;
+  Created: Boolean;
+begin
+  Created := False;
+  if AItem is TKMemoImageBlock then
+    Image := TKMemoImageBlock(AItem)
+  else
+  begin
+    Image := TKMemoImageBlock.Create;
+    Created := True;
+  end;
+  FImageForm.Load(Image);
+  if FImageForm.ShowModal = mrOk then
+  begin
+    FImageForm.Save(Image);
+    if Created then
+    begin
+      if Editor.SelAvail then
+        Editor.ClearSelection;
+      Editor.ActiveInnerBlocks.AddAt(Image, Editor.SplitAt(Editor.SelEnd));
+    end;
+    Editor.Modified := True;
+  end
+  else if Created then
+    Image.Free;
+end;
+
 procedure TKMemoFrame.EditorDropFiles(Sender: TObject; X, Y: Integer;
   Files: TStrings);
 begin
@@ -559,6 +611,12 @@ begin
     end;
     ACFormatCopy.Checked := False;
   end;
+end;
+
+procedure TKMemoFrame.EventEditBlock(AItem: TKMemoBlock; var Result: Boolean);
+begin
+  if AItem is TKMemoImageBlock then
+    Result := EditImage(AItem);
 end;
 
 procedure TKMemoFrame.OpenNewFile;
@@ -597,6 +655,12 @@ end;
 procedure TKMemoFrame.ParaStyleChanged(Sender: TObject; AReasons: TKMemoUpdateReasons);
 begin
   Editor.SelectionParaStyle := FParaStyle;
+end;
+
+procedure TKMemoFrame.PMMainPopup(Sender: TObject);
+begin
+  ACEditImage.Update;
+  ACEditHyperlink.Update;
 end;
 
 function TKMemoFrame.SaveFile(SaveAs, NeedAnotherOp: Boolean): Boolean;

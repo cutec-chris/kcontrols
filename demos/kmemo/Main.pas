@@ -22,7 +22,7 @@ type
     BUtest: TButton;
     BUPreview: TButton;
     BUPrint: TButton;
-    Button1: TButton;
+    CoBTest: TComboBox;
     PNMain: TPanel;
     Panel1: TPanel;
     Panel2: TPanel;
@@ -30,7 +30,6 @@ type
     Splitter1: TSplitter;
     KPrintPreviewDialog1: TKPrintPreviewDialog;
     KPrintSetupDialog1: TKPrintSetupDialog;
-    procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure KMemo1DropFiles(Sender: TObject; X, Y: Integer; Files: TStrings);
@@ -42,7 +41,11 @@ type
     { Private declarations }
     KMemo1: TKMemo;
     KMemo2: TKMemo;
+    function Call(MethodName: string): string;
     procedure LoadFiles;
+  public
+    { Public declarations }
+  published
     procedure Test1;
     procedure Test2;
     procedure Test3;
@@ -67,8 +70,7 @@ type
     procedure Test22;
     procedure Test23;
     procedure Test24;
-  public
-    { Public declarations }
+    procedure Test25;
   end;
 
 var
@@ -83,6 +85,8 @@ implementation
 {$ENDIF}
 
 procedure TMainForm.FormCreate(Sender: TObject);
+var
+  I: Integer;
 begin
   KMemo1 := TKMemo.Create(Self);
   KMemo1.ContentPadding.Top := 20;
@@ -102,38 +106,24 @@ begin
   KMemo2.ContentPadding.Right := 20;
   KMemo2.ContentPadding.Bottom := 20;
   KMemo2.Align := alClient;
-  KMemo2.Options := KMemo2.Options + [eoShowFormatting];
+  KMemo2.Options := KMemo2.Options + [eoShowFormatting, eoWantTab];
   KMemo2.Parent := Panel2;
   KMemo2.Clear;
+
+  for I := 1 to 25 do
+    CoBTest.Items.Add('Test ' + IntToStr(I));
 end;
 
-procedure TMainForm.Button1Click(Sender: TObject);
+function TMainForm.Call(MethodName: string): string;
+type
+  TProc = procedure of object;
 var
-  aStyle: TKMemoParaStyle;
-  Result: Boolean;
-  a: Integer;
-  function LoopBlocks(aBlock : TKMemoContainer) : Boolean;
-  var
-    i: Integer;
-  begin
-    Result := aBlock.ParaStyle<>aStyle;
-    if not Result then
-      for i := 0 to aBlock.Blocks.Count-1 do
-        begin
-          if aBlock.Blocks[i] is TKMemoContainer then
-            Result := LoopBlocks(aBlock.Blocks[i] as TKMemoContainer)
-          else Result := Result or (aBlock.Blocks[i].ParaStyle<>aStyle);
-          if Result then break;
-        end;
-  end;
-
+  m: TMethod;
 begin
-  aStyle := KMemo1.ParaStyle;
-  Result := False;
-  for a := 0 to KMemo1.Blocks.Count-1 do
-    if KMemo1.Blocks[a] is TKMemoContainer then
-      Result := LoopBlocks(KMemo1.Blocks[a] as TKMemoContainer)
-    else Result := Result or (KMemo1.Blocks[a].ParaStyle<>aStyle);
+  m.Code := Self.MethodAddress(MethodName); //find method code
+  m.Data := pointer(Self); //store pointer to object instance
+  if m.Code <> nil then
+    TProc(m);
 end;
 
 procedure TMainForm.FormResize(Sender: TObject);
@@ -166,10 +156,10 @@ begin
 //  KMemo1.LoadFromRTF('simpletable.rtf');
 //  KMemo1.LoadFromRTF('advancedtable.rtf');
 //  KMemo1.Select(10, 510);
-  KMemo1.SaveToRTF('test_save.rtf');
+  KMemo1.SaveToRTF('test_save.rtf', False, True);
 
   KMemo2.LoadFromRTF('test_save.rtf');
-  KMemo2.SaveToRTF('test_copy_save.rtf');
+  KMemo2.SaveToRTF('test_save_copy.rtf', False, True);
 end;
 
 procedure TMainForm.KMemo1DropFiles(Sender: TObject; X, Y: Integer;  Files: TStrings);
@@ -179,22 +169,26 @@ end;
 
 procedure TMainForm.BUTestClick(Sender: TObject);
 begin
-  Test6;
+  if CoBTest.ItemIndex >= 0 then
+    Call('Test' + IntToStr(CoBTest.ItemIndex + 1));
 end;
 
 procedure TMainForm.Test1;
 begin
+  // add text
   KMemo1.Blocks.AddTextBlock('Hello world!');
 end;
 
 procedure TMainForm.Test2;
 begin
+  // clear everything and add text
   KMemo1.Blocks.Clear;
   KMemo1.Blocks.AddTextBlock('Hello world!');
 end;
 
 procedure TMainForm.Test3;
 begin
+  // lock memo updating for bulk operations
   with KMemo1.Blocks do
   begin
     LockUpdate;
@@ -209,6 +203,7 @@ end;
 
 procedure TMainForm.Test4;
 begin
+  // add more text blocks
   with KMemo1.Blocks do
   begin
     LockUpdate;
@@ -228,6 +223,7 @@ procedure TMainForm.Test5;
 var
   TB: TKMemoTextBlock;
 begin
+  // format text
   TB := KMemo1.Blocks.AddTextBlock('Hello world!');
   TB.TextStyle.Font.Name := 'Arial';
   TB.TextStyle.Font.Color := clRed;
@@ -239,6 +235,7 @@ var
   TB: TKMemoTextBlock;
   PA: TKMemoParagraph;
 begin
+  // format paragraph
   TB := KMemo1.Blocks.AddTextBlock('Hello world!');
   PA := KMemo1.Blocks.AddParagraph;
   PA.ParaStyle.HAlign := halCenter;
@@ -250,6 +247,7 @@ var
   TB: TKMemoTextBlock;
   PA: TKMemoParagraph;
 begin
+  // add numbering style
   TB := KMemo1.Blocks.AddTextBlock('Hello world!');
   PA := KMemo1.Blocks.AddParagraph;
   PA.Numbering := pnuArabic;
@@ -260,6 +258,7 @@ var
   TB: TKMemoTextBlock;
   PA: TKMemoParagraph;
 begin
+  // add multilevel numbering styles
   KMemo1.Blocks.LockUpdate;
   try
     KMemo1.Blocks.Clear;
@@ -304,6 +303,7 @@ end;
 
 procedure TMainForm.Test9;
 begin
+  // add image from file
   KMemo1.Blocks.AddImageBlock('penguins.jpg');
 end;
 
@@ -311,6 +311,7 @@ procedure TMainForm.Test10;
 var
   IB: TKMemoImageBlock;
 begin
+  // add image from file with relative position
   IB := KMemo1.Blocks.AddImageBlock('penguins.jpg');
   IB.Position := mbpRelative;
   IB.LeftOffset := 50;
@@ -320,6 +321,7 @@ procedure TMainForm.Test11;
 var
   CO: TKMemoContainer;
 begin
+  // add container with relative position
   CO := KMemo1.Blocks.AddContainer;
   CO.Position := mbpRelative;
   CO.LeftOffset := 50;
@@ -335,6 +337,7 @@ procedure TMainForm.Test12;
 var
   TBL: TKMemoTable;
 begin
+  // add simple table
   TBL := KMemo1.Blocks.AddTable;
   TBL.ColCount := 2;
   TBL.RowCount := 2;
@@ -386,6 +389,7 @@ procedure TMainForm.Test13;
 var
   TBL: TKMemoTable;
 begin
+  // add more complex table
   KMemo1.Blocks.LockUpdate;
   try
     TBL := KMemo1.Blocks.AddTable;
@@ -418,17 +422,20 @@ end;
 
 procedure TMainForm.Test14;
 begin
+  // add hyperlink
   KMemo1.Blocks.AddHyperlink('www.google.com', 'www.google.com');
 end;
 
 procedure TMainForm.Test15;
 begin
+  // use an image as background
   KMemo1.Colors.BkGnd := clYellow;
   KMemo1.Background.Image.LoadFromFile('../../resource_src/clouds.jpg');
 end;
 
 procedure TMainForm.Test16;
 begin
+  // modify default text style and paragraph style
   KMemo1.TextStyle.Font.Name := 'Arial';
   KMemo1.TextStyle.Font.Size := 20;
   KMemo1.ParaStyle.HAlign := halCenter;
@@ -436,12 +443,14 @@ end;
 
 procedure TMainForm.Test17;
 begin
+  // load and save RTF
   KMemo1.LoadFromRTF('kmemo_manual.rtf');
   KMemo1.SaveToRTF('kmemo_manual_copy.rtf');
 end;
 
 procedure TMainForm.Test18;
 begin
+  // copy entire content to clipboard
   KMemo1.ExecuteCommand(ecSelectAll);
   KMemo1.ExecuteCommand(ecCopy);
 end;
@@ -451,6 +460,7 @@ var
   TextStyle: TKMemoTextStyle;
   ParaStyle: TKMemoParaStyle;
 begin
+  // set different text style and paragraph style to selection
   KMemo1.ExecuteCommand(ecSelectAll);
   ParaStyle := TKMemoParaStyle.Create;
   TextStyle := TKMemoTextStyle.Create;
@@ -467,12 +477,14 @@ end;
 
 procedure TMainForm.Test20;
 begin
+  // show print preview dialog
   KPrintPreviewDialog1.Control := KMemo1;
   KPrintPreviewDialog1.Execute;
 end;
 
 procedure TMainForm.Test21;
 begin
+  // show print setup dialog
   KPrintSetupDialog1.Control := KMemo1;
   KPrintSetupDialog1.Execute;
 end;
@@ -482,6 +494,7 @@ var
   StartPos, EndPos: Integer;
   TextStyle: TKMemoTextStyle;
 begin
+  // set different text style to selection
   TextStyle := TKMemoTextStyle.Create;
   try
     TextStyle.Font.Style := [fsBold];
@@ -505,14 +518,12 @@ end;
 procedure TMainForm.Test23;
 var
   Picture: TPicture;
-  IB: TKMemoImageBlock;
 begin
+  // add image from a TPicture
   Picture := TPicture.Create;
   try
     Picture.LoadFromFile('penguins.jpg');
-    IB := TKMemoImageBlock.Create;
-    IB.Image := Picture;
-    KMemo1.Blocks.AddAt(IB, -1);
+    KMemo1.Blocks.AddImageBlock(Picture);
     KMemo1.Select(KMemo1.SelectableLength, 0);
   finally
     Picture.Free;
@@ -526,6 +537,7 @@ var
   Blocks: TKMemoBlocks;
   Stream: TMemoryStream;
 begin
+  // Load/SaveFromRTFStream demo
   Test13; //create a table
   TBL := KMemo1.Blocks[KMemo1.Blocks.Count - 1] as TKMemoTable;
   Blocks := TBL.Cells[0, 0].Blocks;
@@ -541,6 +553,30 @@ begin
     Blocks.LoadFromRTFStream(Stream);
   finally
     Stream.Free;
+  end;
+end;
+
+procedure TMainForm.Test25;
+var
+  BM:TBitmap;
+  Preview: TKPrintPreview;
+begin
+  // saving a screenshot from preview
+  Preview := TKPrintPreview.Create(nil);
+  BM := TBitmap.Create;
+  try
+    Preview.Parent := Self;
+    Preview.Height := 297 * 3; // A4 scaled
+    Preview.Width := 210 * 3;  // A4 scaled
+    Preview.Control := KMemo1;
+    Preview.Page := 2;
+    BM.Width := Preview.PageRect.Right - Preview.PageRect.Left;
+    BM.Height := Preview.PageRect.Bottom - Preview.PageRect.Top;
+    Preview.PaintTo(BM.Canvas);
+    BM.SaveToFile('test.bmp');
+  finally
+    Preview.Free;
+    BM.Free;
   end;
 end;
 
