@@ -20,12 +20,21 @@
 
 { COMPILERx, DELPHIx and BCBx directives from VERx }
 
+{$IFDEF VER310}
+  {$DEFINE COMPILER24}
+  {$IFDEF BCB}
+    {$DEFINE BCB10B}
+  {$ELSE}
+    {$DEFINE DELPHI10B}
+  {$ENDIF}
+{$ENDIF}
+
 {$IFDEF VER300}
   {$DEFINE COMPILER23}
   {$IFDEF BCB}
-    {$DEFINE BCBXS}
+    {$DEFINE BCB10S}
   {$ELSE}
-    {$DEFINE DELPHIXS}
+    {$DEFINE DELPHI10S}
   {$ENDIF}
 {$ENDIF}
 
@@ -211,6 +220,7 @@
 
 { COMPILERx_UP directives from COMPILERx }
 
+{$IFDEF COMPILER24} {$DEFINE COMPILER24_UP} {$ENDIF}
 {$IFDEF COMPILER23} {$DEFINE COMPILER23_UP} {$ENDIF}
 {$IFDEF COMPILER22} {$DEFINE COMPILER22_UP} {$ENDIF}
 {$IFDEF COMPILER21} {$DEFINE COMPILER21_UP} {$ENDIF}
@@ -233,6 +243,7 @@
 {$IFDEF COMPILER3}  {$DEFINE COMPILER3_UP}  {$ENDIF}
 {$IFDEF COMPILER2}  {$DEFINE COMPILER2_UP}  {$ENDIF}
 
+{$IFDEF COMPILER24_UP} {$DEFINE COMPILER23_UP} {$ENDIF}
 {$IFDEF COMPILER23_UP} {$DEFINE COMPILER22_UP} {$ENDIF}
 {$IFDEF COMPILER22_UP} {$DEFINE COMPILER21_UP} {$ENDIF}
 {$IFDEF COMPILER21_UP} {$DEFINE COMPILER20_UP} {$ENDIF}
@@ -277,19 +288,6 @@
   {.$DEFINE USE_WIDEWINPROCS}
 {$ENDIF}
 
-{ Support Alphacontrols integration in Delphi and Lazarus,
-  AlphaControlsLaz package needed for Lazarus. }
-{.$DEFINE SUPPORT_ALPHASKINS}
-
-{ Allow Alphacontrols integration to be used in Delphi }
-{$IFnDEF FPC}
-  {.$DEFINE USE_ALPHASKINS}
-{$ENDIF}
-
-{$IF DEFINED(SUPPORT_ALPHASKINS) OR DEFINED(USE_ALPHASKINS)}
-  {$DEFINE SUPPORT_OR_USE_ALPHASKINS}
-{$IFEND}
-
 {$DEFINE LAZARUS_HAS_DC_MAPPING}
 
 {$IF DEFINED(USE_WINAPI) OR DEFINED(LAZARUS_HAS_DC_MAPPING)}
@@ -317,12 +315,6 @@
 {$IF DEFINED(FPC) OR DEFINED(COMPILER12_UP)}
   {$DEFINE USE_PNG_SUPPORT}
 {$IFEND}
-
-{ Disable kerning pairs. This is done by very simple manner - character by character measuring and output.
-  Because different OSes output kerning pairs differently and there is no dedicated kerning pair API in Lazarus.
-  My approach is slower but safe. Uncomment only when the memo rendering is slow.
-  With kerning enabled you may get unpredictable behavior when selecting text on some fonts etc. }
-{$DEFINE KMEMO_DISABLE_KERNING}
 
 {$ENDIF ~KCONTROLS_INC}
 

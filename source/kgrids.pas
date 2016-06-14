@@ -1160,6 +1160,8 @@ const
   cGF_EnterPressed                = $00000100;
   { This internal flag is set if esc key has been pressed and handled by the grid. }
   cGF_EscPressed                  = $00000200;
+  { This internal flag is set if the grid should not respond to mouse wheel messages. }
+  cGF_PreventMouseWheelScroll     = $00000400;
 
 type
   TKCustomGrid = class;
@@ -1355,7 +1357,7 @@ type
     { Read method for the @link(TKGridAxisItem.Objects) property. Implementation for columns. }
     function GetObjects(Index: Integer): TObject; override;
     { Read method for the @link(TKGridAxisItem.Strings) property. Implementation for columns. }
-    function GetStrings(Index: Integer): TKString; override;
+    function GetStrings(Index: Integer): KFunctions.TKString; override;
     { Called on parent grid change. }
     procedure GridChanged; override;
     { Write method for the @link(TKGridAxisItem.Extent) property. Implementation for columns. }
@@ -1367,7 +1369,7 @@ type
     { Write method for the @link(TKGridAxisItem.SortMode) property. Implementation for columns. }
     procedure SetSortMode(const Value: TKGridSortMode); override;
     { Write method for the @link(TKGridAxisItem.Strings) property. Implementation for columns. }
-    procedure SetStrings(Index: Integer; const Value: TKString); override;
+    procedure SetStrings(Index: Integer; const Value: KFunctions.TKString); override;
     { Write method for the @link(TKGridAxisItem.Visible) property. Implementation for columns. }
     procedure SetVisible(Value: Boolean); override;
     { Validate initial column position. }
@@ -1468,6 +1470,7 @@ type
     This class implements properties and methods common to all cell classes. }
   TKGridCell = class(TObject)
   private
+    FHint: TKString;
     FGrid: TKCustomGrid;
     FSpan: TKGridCellSpan;
     procedure SetColSpan(const Value: Integer);
@@ -1543,6 +1546,8 @@ type
     { Pointer to the grid. You will probably need it when implementing application
       specific behavior. }
     property Grid: TKCustomgrid read FGrid;
+    { Optional hint to show when hovering over a cell. }
+    property Hint: TKString read FHint write FHint;
     { Specifies the number of rows the cell should be spanned to. }
     property RowSpan: Integer read FSpan.RowSpan write SetRowSpan;
     { Specifies both cell span parameters. }
@@ -1573,13 +1578,13 @@ type
     FText: PWideChar; // WideString is slow as storage here
     function GetText: TKString;
   {$ENDIF}
-    procedure SetText(const Value: TKString);
+    procedure SetText(const Value: KFunctions.TKString);
   protected
     { Assigns a new text string into this TKGridTextCell instance. The new
       string will be assigned by a grow on demand method, i.e. the memory
       allocated for the string can only grow within each assignment. It continues
       to grow until the TKGridTextCell instance is destroyed. }
-    procedure AssignText(const Value: TKString); virtual;
+    procedure AssignText(const Value: KFunctions.TKString); virtual;
     { Cell class aware version of @link(TKCustomGrid.OnEditorCreate).
       Creates a TEdit inplace editor. }
     procedure EditorCreate(ACol, ARow: Integer; var AEditor: TWinControl); override;
@@ -1723,6 +1728,7 @@ type
     FCheckBox: Boolean;
     FCheckBoxHAlign: TKHAlign;
     FCheckBoxHPadding: Integer;
+    FCheckBoxEnabled: Boolean;
     FCheckboxState: TCheckBoxState;
     FCheckBoxVAlign: TKVAlign;
     FCheckBoxVPadding: Integer;
@@ -1896,6 +1902,9 @@ type
       state. This property is for backward compatibility and has no effect unless
       @link(TKGridCellPainter.CheckBox) is True. For new designs use the CheckBoxState property. }
     property CheckBoxChecked: Boolean read GetCheckBoxChecked write SetCheckBoxChecked;
+    { Specifies if the check box frame should be painted in enabled or disabled
+      state. }
+    property CheckBoxEnabled: Boolean read FCheckBoxEnabled write FCheckBoxEnabled;
     { Specifies the horizontal padding for the sorting arrow. }
     property CheckBoxHAlign: TKHAlign read FCheckBoxHAlign write FCheckBoxHAlign;
     { Specifies the horizontal padding for the sorting arrow. }
@@ -2136,7 +2145,7 @@ type
     function GetAllRowsSelected: Boolean;
     function GetAllColsSelected: Boolean;
     function GetCell(ACol, ARow: Integer): TKGridCell;
-    function GetCells(ACol, ARow: Integer): TKString;
+    function GetCells(ACol, ARow: Integer): KFunctions.TKString;
     function GetCellSpan(ACol, ARow: Integer): TKGridCellSpan;
     function GetCols(Index: Integer): TKGridCol;
     function GetColWidths(Index: Integer): Integer;
@@ -2154,6 +2163,7 @@ type
     function GetLastVisibleRow: Integer;
     function GetMoreCellsSelected: Boolean;
     function GetObjects(ACol, ARow: Integer): TObject;
+    function GetPreventMouseWheelScroll: Boolean;
     function GetRowHeights(Index: Integer): Integer;
     function GetRows(Index: Integer): TKGridRow;
     function GetSelection: TKGridRect;
@@ -2199,6 +2209,7 @@ type
     procedure SetObjects(ACol, ARow: Integer; Value: TObject);
     procedure SetOptions(Value: TKGridOptions);
     procedure SetOptionsEx(Value: TKGridOptionsEx);
+    procedure SetPreventMouseWheelScroll(const Value: Boolean);
     procedure SetRow(Value: Integer);
     procedure SetRowCount(Value: Integer);
     procedure SetRowHeights(Index: Integer; Value: Integer);
@@ -2521,7 +2532,7 @@ type
     { Used internally to assign new cell value. }
     procedure InternalSetCell(ACol, ARow: Integer; Value: TKGridCell); virtual;
     { Used internally to assign new text to a cell. }
-    procedure InternalSetCells(ACol, ARow: Integer; const Text: TKString); virtual;
+    procedure InternalSetCells(ACol, ARow: Integer; const Text: KFunctions.TKString); virtual;
     { Sets the cell span paramters according to given parameters. Automatically
       splits any existing overlapping areas. Returns a grid rectangle that can
       be used to update all affected cells. }
@@ -2718,7 +2729,12 @@ type
       of respective grid areas. Set UpdateNeeded to False to let UpdateScrollRange
       decide whether these need to be invalidated. }
     procedure UpdateScrollRange(Horz, Vert, UpdateNeeded: Boolean); virtual;
-    procedure ValidateInitialPositions; virtual;
+    { Validate initial row indexes. }
+    procedure ValidateInitialRowPositions;
+    { Validate initial column indexes. }
+    procedure ValidateInitialColPositions;
+    { Validate initial row and column indexes. }
+    procedure ValidateInitialPositions;
   {$IFNDEF FPC}
     { Inherited method. Used to ensure correct painting for transparent inplace
       editors. }
@@ -3258,6 +3274,8 @@ type
     property OptionsEx: TKGridOptionsEx read FOptionsEx write SetOptionsEx default cOptionsExDef;
     { Inherited property - see Delphi help. }
     property ParentColor default False;
+    { Prevent grid reaction to mouse wheel events - useful eg. for combo boxes as inplace editors. }
+    property PreventMouseWheelScroll: Boolean read GetPreventMouseWheelScroll write SetPreventMouseWheelScroll;
     { Specifies the style how multiple cells are selected. }
     property RangeSelectStyle: TKGridRangeSelectStyle read FRangeSelectStyle write FRangeSelectStyle default cRangeSelectStyleDef;
     { Gains access to selection base cell. Setting Row discards the current selection
@@ -3815,7 +3833,7 @@ function CompareAxisItems(AxisItems1, AxisItems2: TKGridAxisItems): Boolean;
   Call TKCustomGrid.CellPainter.@link(TKGridCellPainter.DefaultDraw) instead. }
 procedure DefaultDrawCell(AGrid: TKCustomGrid; ACol, ARow: Integer; ARect: TRect;
   AState: TKGridDrawState; HAlign: TKHAlign; VAlign: TKVAlign;
-  HPadding, VPadding: Integer; const AText: TKString);
+  HPadding, VPadding: Integer; const AText: KFunctions.TKString);
 
 { Obsolete function. Call TKCustomGrid.@link(TKCustomGrid.DefaultEditorKeyPreview) instead. }
 procedure DefaultKeyPreview(AGrid: TKCustomGrid; AEditor: TWinControl;
@@ -4787,6 +4805,7 @@ end;
 constructor TKGridCell.Create(AGrid: TKCustomGrid);
 begin
   FGrid := AGrid;
+  FHint := '';
   Initialize;
 end;
 
@@ -5697,7 +5716,7 @@ begin
       (not FHotFrameOnly or PtInRect(ARect, MousePt));
     if FGrid.ThemedCells then
     begin
-      if FGrid.Enabled then
+      if FGrid.Enabled and FCheckBoxEnabled then
         case FCheckBoxState of
           cbChecked:
           begin
@@ -5739,7 +5758,8 @@ begin
 //        cbGrayed:
 //          State := State or DFCS_GRAYED;
         end;
-      if not FGrid.Enabled then State := State or DFCS_INACTIVE;
+      if not (FGrid.Enabled and FCheckBoxEnabled) then
+        State := State or DFCS_INACTIVE;
       DrawFrameControl(TmpCanvas.Handle, TmpRect, DFC_BUTTON, State);
     end;
     if BM <> nil then
@@ -6003,6 +6023,7 @@ begin
   FButton := False;
   FButtonPressed := False;
   FCheckBox := False;
+  FCheckBoxEnabled := True;
   FCheckBoxHAlign := halLeft;
   FCheckBoxHPadding := 2;
   FCheckBoxVAlign := valCenter;
@@ -7197,19 +7218,26 @@ procedure TKCustomGrid.DefaultMouseCellHint(ACol, ARow: Integer;
 var
   R: TRect;
   Extent: TPoint;
+  IsHint: Boolean;
   AText: KFunctions.TKString;
 begin
   if ColValid(ACol) and Cols[ACol].CellHint then
   begin
     if AShow then
     begin
-      AText := Cells[ACol, ARow];
-      if (AText <> '') and (ARow >= FFixedRows) and
+      IsHint := Assigned(FCells) and (Cell[ACol, ARow].Hint <> '');
+      if IsHint then
+        AText := Cell[ACol, ARow].Hint
+      else
+        AText := Cells[ACol, ARow];
+      if (AText <> '') and
+        ((ARow >= FFixedRows) or IsHint) and
         ((ARow <> FEditorCell.Row) or (ACol <> FEditorCell.Col) or not EditorMode) and
         CellRect(ACol, ARow, R, True) then
       begin
-        Extent := MeasureCell(ACol, ARow, R, GetDrawState(ACol, ARow, HasFocus), mpCellExtent);
-        if (Extent.X > R.Right - R.Left) or (Extent.Y > R.Bottom - R.Top) then
+        if not IsHint then
+          Extent := MeasureCell(ACol, ARow, R, GetDrawState(ACol, ARow, HasFocus), mpCellExtent);
+        if IsHint or (Extent.X > R.Right - R.Left) or (Extent.Y > R.Bottom - R.Top) then
         begin
           FreeAndNil(FHint);
           FHint := TKTextHint.Create(nil);
@@ -7312,7 +7340,7 @@ var
   Key: Word;
 begin
   Result := inherited DoMouseWheelDown(Shift, MousePos);
-  if not Result then
+  if not (Result or PreventMouseWheelScroll) then
   begin
     if gxMouseWheelScroll in FOptionsEx then
     begin
@@ -7333,7 +7361,7 @@ var
   Key: Word;
 begin
   Result := inherited DoMouseWheelUp(Shift, MousePos);
-  if not Result then
+  if not (Result or PreventMouseWheelScroll) then
   begin
     if gxMouseWheelScroll in FOptionsEx then
     begin
@@ -7538,9 +7566,9 @@ begin
       MouseOverCells; // some win32 error might popup here
     except
     end;
-    CM_MOUSEWHEEL:
+    {CM_MOUSEWHEEL:
     begin
-    end;
+    end;}
     CN_CHAR:
       ClampInView(FEditorCell.Col, FEditorCell.Row);
   {$IFNDEF FPC}
@@ -8175,6 +8203,11 @@ begin
     if Data is TKGridObjectCell then
       Result := TKGridObjectCell(Data).CellObject;
   end;
+end;
+
+function TKCustomGrid.GetPreventMouseWheelScroll: Boolean;
+begin
+  Result := Flag(cGF_PreventMouseWheelScroll);
 end;
 
 function TKCustomGrid.GetRowHeights(Index: Integer): Integer;
@@ -9377,7 +9410,6 @@ end;
 procedure TKCustomGrid.InternalUnlockUpdate;
 begin
   ClearSortMode;
-  ValidateInitialPositions;
   UpdateAxes(True, cAll, True, cAll, [afCheckMinExtent]);
 end;
 
@@ -10306,7 +10338,8 @@ begin
   Result := Max(Info.FullVisCells - Info.FirstGridCell, 1);
 end;
 
-procedure TKCustomGrid.PaintCell(ACanvas: TCanvas; ACol, ARow: Integer; AX, AY: Integer; APrinting: Boolean; ABlockRect: PRect);
+procedure TKCustomGrid.PaintCell(ACanvas: TCanvas; ACol, ARow: Integer;
+  AX: Integer; AY: Integer; APrinting: Boolean; ABlockRect: PRect);
 var
   R, ClipRect, TmpRect, TmpBlockRect: TRect;
   CellBitmap: TKAlphaBitmap;
@@ -12275,6 +12308,11 @@ begin
   end;
 end;
 
+procedure TKCustomGrid.SetPreventMouseWheelScroll(const Value: Boolean);
+begin
+  FlagAssign(cGF_PreventMouseWheelScroll, Value);
+end;
+
 procedure TKCustomGrid.SetRow(Value: Integer);
 begin
   if RowSelectable(Value) and ((Value <> FSelection.Row1) or (FSelection.Row1 <> FSelection.Row2)) then
@@ -13153,19 +13191,26 @@ begin
   end;
 end;
 
-procedure TKCustomGrid.ValidateInitialPositions;
-
-  procedure Axis(AxisItems: TKGridAxisItems);
-  var
-    I: Integer;
-  begin
-    for I := 0 to AxisItems.Count - 1 do
-      AxisItems[I].ValidateInitialPos;
-  end;
-
+procedure TKCustomGrid.ValidateInitialRowPositions;
+var
+  I: Integer;
 begin
-  Axis(FCols);
-  Axis(FRows);
+  for I := 0 to FRows.Count - 1 do
+    FRows[I].ValidateInitialPos;
+end;
+
+procedure TKCustomGrid.ValidateInitialColPositions;
+var
+  I: Integer;
+begin
+  for I := 0 to FCols.Count - 1 do
+    FCols[I].ValidateInitialPos;
+end;
+
+procedure TKCustomGrid.ValidateInitialPositions;
+begin
+  ValidateInitialColPositions;
+  ValidateInitialRowPositions;
 end;
 
 procedure TKCustomGrid.WMChar(var Msg: {$IFDEF FPC}TLMChar{$ELSE}TWMChar{$ENDIF});
