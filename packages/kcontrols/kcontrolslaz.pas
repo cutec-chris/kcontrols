@@ -4,14 +4,15 @@
 
 unit KControlsLaz;
 
+{$warn 5023 off : no warning about unused units}
 interface
 
 uses
   kfunctions, kgraphics, kcontrols, kdialogs, keditcommon, kgrids, khexeditor, 
-  kicon, kprintpreview, kprintsetup, kwidewinprocs, kcontrolsdesign, KDBGrids, 
+  kicon, kprintpreview, kprintsetup, kwidewinprocs, kcontrolsdesign, kdbgrids, 
   kedits, kmessagebox, klog, kprogress, klabels, kmemo, kbuttons, 
-  kmemodlghyperlink, kmemodlgparastyle, kmemodlgtextstyle, kmemofrm, KMemoRTF, 
-  kpagecontrol, LazarusPackageIntf;
+  kmemodlghyperlink, kmemodlgparastyle, kmemodlgtextstyle, kmemofrm, kmemortf, 
+  kpagecontrol, kmemodlgcontainer, kmemodlgimage, LazarusPackageIntf;
 
 implementation
 

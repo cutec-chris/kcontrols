@@ -24,7 +24,7 @@ interface
 
 uses
   Classes, Contnrs, Graphics, Controls, Types,
-  KControls, KFunctions, KGraphics, KMemo;
+  KControls, KFunctions, KGraphics, KMemo, LazUTF8;
 
 type
   TKMemoRTFCtrlMethod = procedure(ACtrl: Integer; var AText: AnsiString; AParam: Integer) of object;

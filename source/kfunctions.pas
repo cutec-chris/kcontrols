@@ -32,7 +32,7 @@ uses
   {$IFEND}
  {$ENDIF}
  // use the LCL interface support whenever possible
-  LCLType, LCLIntf, LMessages, LCLProc, LCLVersion, Interfaces, InterfaceBase,
+  LCLType, LCLIntf, LMessages, LCLProc, LCLVersion, Interfaces, InterfaceBase, LazUTF8,
 {$ELSE}
   Windows, Messages,
 {$ENDIF}
@@ -2755,7 +2755,7 @@ end;
 function UnicodeUpperCase(const AText: TKString): TKString;
 begin
 {$IFDEF FPC}
-  Result := LCLProc.UTF8UpperCase(AText);
+  Result := UTF8UpperCase(AText);
 {$ELSE}
  {$IFDEF STRING_IS_UNICODE}
   Result := AnsiUpperCase(AText);
@@ -2768,7 +2768,7 @@ end;
 function UnicodeLowerCase(const AText: TKString): TKString;
 begin
 {$IFDEF FPC}
-  Result := LCLProc.UTF8LowerCase(AText);
+  Result := UTF8LowerCase(AText);
 {$ELSE}
  {$IFDEF STRING_IS_UNICODE}
   Result := AnsiLowerCase(AText);
