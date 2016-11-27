@@ -118,6 +118,8 @@ resourcestring
   sPSAllPages = 'All pages (%d)';
   sPSErrPrintSetup = 'Print setup error';
   sPSErrNoPrinterInstalled = 'No printer is installed on this computer.';
+  sPSErrNoDefaultPrinter = 'No default printer selected, cannot continue. Please select default printer.';
+  sPSErrPrinterUnknown = 'Unknown error in printer interface. Please restart application and try again.';
 
   // KControlsDesign texts
   sInvalidGraphicFormat = 'Invalid graphic format.';

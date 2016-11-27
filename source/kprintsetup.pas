@@ -221,9 +221,22 @@ begin
       SetupCheckBox(CBWrapLines, poWrapLines);
       SetupCheckBox(CBMirrorMargins, poMirrorMargins);
 
-      CoBPrinterName.Items.Assign(Printer.Printers);
-      CoBPrinterName.ItemIndex := CoBPrinterName.Items.IndexOf(FPageSetup.PrinterName);
-      if CoBPrinterName.ItemIndex < 0 then CoBPrinterName.ItemIndex := Printer.PrinterIndex;
+      try
+        CoBPrinterName.Text := '';
+        CoBPrinterName.Items.Assign(Printer.Printers);
+        CoBPrinterName.ItemIndex := CoBPrinterName.Items.IndexOf(FPageSetup.PrinterName);
+        if FPageSetup.IsDefaultPrinter then
+        begin
+          if CoBPrinterName.ItemIndex < 0 then CoBPrinterName.ItemIndex := Printer.PrinterIndex;
+        end else
+        begin
+          // no default printer selected!
+          if CoBPrinterName.Items.Count > 0 then
+            CoBPrinterName.ItemIndex := 0;
+        end;
+      except
+        // silent, keep default or successfully obtained data
+      end;
       RBSelectedOnly.Enabled := FPageSetup.SelAvail and FSelAvail;
       case FPageSetup.Range of
         prRange: RBRange.Checked := True;
@@ -307,32 +320,39 @@ procedure TKPrintSetupForm.BUConfigureClick(Sender: TObject);
 var
   PrinterCount: Integer;
 begin
-  PrinterCount := 0;
   FormToPageSetup;
-  try
-    PrinterCount := Printer.Printers.Count;
-    Printer.Orientation := FPageSetup.Orientation;
-    Printer.Copies := FPageSetup.Copies;
-    if PSDMain.Execute then
-    begin
-      FPageSetup.LockUpdate;
-      try
-        FPageSetup.Orientation := Printer.Orientation;
-        FPageSetup.Copies := Printer.Copies;
-      finally
-        FPageSetup.UnlockUpdate;
+  if FPageSetup.IsDefaultPrinter then
+  begin
+    PrinterCount := 0;
+    try
+      PrinterCount := Printer.Printers.Count;
+      Printer.Orientation := FPageSetup.Orientation;
+      Printer.Copies := FPageSetup.Copies;
+      if PSDMain.Execute then
+      begin
+        FPageSetup.LockUpdate;
+        try
+          FPageSetup.Orientation := Printer.Orientation;
+          FPageSetup.Copies := Printer.Copies;
+        finally
+          FPageSetup.UnlockUpdate;
+        end;
+        PageSetupToForm;
       end;
-      PageSetupToForm;
-    end;
-  except
-    if PrinterCount = 0 then
-      KMsgBox(sPSErrPrintSetup, sPSErrNoPrinterInstalled, [mbOk], miStop);
-  end;
+    except
+      if PrinterCount = 0 then
+        KMsgBox(sPSErrPrintSetup, sPSErrNoPrinterInstalled, [mbOk], miStop)
+      else
+        KMsgBox(sPSErrPrintSetup, sPSErrPrinterUnknown, [mbOk], miStop);
+    end
+  end else
+    KMsgBox(sPSErrPrintSetup, sPSErrNoDefaultPrinter, [mbOk], miStop)
 end;
 
 procedure TKPrintSetupForm.EDTopExit(Sender: TObject);
 begin
-  ValidateForm;
+  if not FUpdateLock then
+    ValidateForm;
 end;
 
 procedure TKPrintSetupForm.CoBMarginUnitsChange(Sender: TObject);
@@ -351,7 +371,8 @@ end;
 
 procedure TKPrintSetupForm.RBAllClick(Sender: TObject);
 begin
-  ValidateForm;
+  if not FUpdateLock then
+    ValidateForm;
 end;
 
 procedure TKPrintSetupForm.SetPageSetup(const Value: TKPrintPageSetup);

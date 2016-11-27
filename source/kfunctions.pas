@@ -24,123 +24,20 @@ interface
 
 uses
 {$IFDEF FPC}
- {$IFDEF USE_WINAPI}
+ {$IFDEF MSWINDOWS}
   Windows,
  {$ELSE}
   {$IF DEFINED(UNIX) and (FPC_FULLVERSION>=20701)}
     UnixCP,
   {$IFEND}
  {$ENDIF}
- // use the LCL interface support whenever possible
-  LCLType, LCLIntf, LMessages, LCLProc, LCLVersion, Interfaces, InterfaceBase, LazUTF8,
+  LazUTF8,
 {$ELSE}
   Windows, Messages,
 {$ENDIF}
-  Classes, ClipBrd, Controls, ComCtrls, Graphics, StdCtrls, SysUtils,
-  Forms;
+  Classes, Contnrs, SysUtils;
 
 const
-{$IFNDEF FPC}
-  { @exclude }
-  KM_MOUSELEAVE = WM_MOUSELEAVE;
-  { @exclude }
-  LM_USER = WM_USER;
-  { @exclude }
-  LM_CANCELMODE = WM_CANCELMODE;
-  { @exclude }
-  LM_CHAR = WM_CHAR;
-  { @exclude }
-  LM_CLEAR = WM_CLEAR;
-  { @exclude }
-  LM_CLOSEQUERY = WM_CLOSE;
-  { @exclude }
-  LM_COPY = WM_COPY;
-  { @exclude }
-  LM_CUT = WM_CUT;
-  { @exclude }
-  LM_DROPFILES = WM_DROPFILES;
-  { @exclude }
-  LM_ERASEBKGND = WM_ERASEBKGND;
-  { @exclude }
-  LM_GETDLGCODE = WM_GETDLGCODE;
-  { @exclude }
-  LM_HSCROLL = WM_HSCROLL;
-  { @exclude }
-  LM_KEYDOWN = WM_KEYDOWN;
-  { @exclude }
-  LM_KILLFOCUS = WM_KILLFOCUS;
-  { @exclude }
-  LM_LBUTTONDOWN = WM_LBUTTONDOWN;
-  { @exclude }
-  LM_LBUTTONUP = WM_LBUTTONUP;
-  { @exclude }
-  LM_MOUSEMOVE = WM_MOUSEMOVE;
-  { @exclude }
-  LM_MOVE = WM_MOVE;
-  { @exclude }
-  LM_PASTE = WM_PASTE;
-  { @exclude }
-  LM_PAINT = WM_PAINT;
-  { @exclude }
-  LM_SETFOCUS = WM_SETFOCUS;
-  { @exclude }
-  LM_SIZE = WM_SIZE;
-  { @exclude }
-  LM_VSCROLL = WM_VSCROLL;
-  { @exclude }
-  LCL_MAJOR = 0;
-  { @exclude }
-  LCL_MINOR = 0;
-  { @exclude }
-  LCL_RELEASE = 0;
-{$ELSE}
-  // hope this is correct about WM_MOUSELEAVE otherwise adapt it as you wish
- {$IFDEF LCLWin32}
-  {$IF ((LCL_MAJOR=0) AND (LCL_MINOR=9) AND (LCL_RELEASE<27))}
-  { @exclude }
-  KM_MOUSELEAVE = LM_LEAVE; // LCL 0.9.26.2-
-  {$ELSE}
-  { @exclude }
-  KM_MOUSELEAVE = LM_MOUSELEAVE; // LCL 0.9.27+
-  {$IFEND}
- {$ELSE}
-  {$IFDEF LCLWinCE}
-  { @exclude }
-  KM_MOUSELEAVE = LM_LEAVE;
-  {$ELSE}
-  { @exclude }
-  KM_MOUSELEAVE = LM_MOUSELEAVE;
-  {$ENDIF}
- {$ENDIF}
- { @exclude }
- //WM_CTLCOLORBTN = Messages.WM_CTLCOLORBTN;
- { @exclude }
- //WM_CTLCOLORSTATIC = Messages.WM_CTLCOLORSTATIC;
-{$ENDIF}
-
-{$IFDEF USE_WINAPI}
-  { @exclude }
-  SHFolderDll = 'SHFolder.dll';
-{$ENDIF}
-
-  { Base for custom messages used by KControls suite. }
-  KM_BASE = LM_USER + 1024;
-
-  { Custom message. }
-  KM_LATEUPDATE = KM_BASE + 1;
-
-  { Constant for horizontal resize cursor. }
-  crHResize = TCursor(101);
-  { Constant for vertical resize cursor. }
-  crVResize = TCursor(102);
-  { Constant for uncaptured dragging cursor. }
-  crDragHandFree = TCursor(103);
-  { Constant for captured dragging cursor. }
-  crDragHandGrip = TCursor(104);
-
-  { Checkbox frame size in logical screen units. }
-  cCheckBoxFrameSize = 13;
-
   { Carriage return character. }
   cCR = #13;
   { Line feed character. }
@@ -162,6 +59,11 @@ const
   { Number. }
   cNumbers = ['0'..'9'];
 
+{$IFDEF MSWINDOWS}
+  { @exclude }
+  SHFolderDll = 'SHFolder.dll';
+{$ENDIF}
+
 {$IFDEF UNIX}
   cEOL = cLF;
   cFirstEOL = cLF;
@@ -181,45 +83,11 @@ const
   cUTF16SecondSurrogateBegin = $DC00;
   cUTF16SecondSurrogateEnd = $DFFF;
 
+  cHexFmtText = '%.2x';
+  cHexBase = 16;
+  cHexDigitCount = 2;
+
 type
-{$IFNDEF FPC}
-  { @exclude }
-  TLMessage = TMessage;
-  { @exclude }
-  TLMCopy = TWMCopy;
-  { @exclude }
-  TLMMouse = TWMMouse;
-  { @exclude }
-  TLMNoParams = TWMNoParams;
-  { @exclude }
-  TLMKey = TWMKey;
-  { @exclude }
-  TLMChar = TWMChar;
-  { @exclude }
-  TLMEraseBkGnd = TWMEraseBkGnd;
-  { @exclude }
-  TLMHScroll = TWMHScroll;
-  { @exclude }
-  TLMKillFocus = TWMKillFocus;
-  { @exclude }
-  TLMMove = TWMMove;
-  { @exclude }
-  TLMPaint = TWMPaint;
-  { @exclude }
-  TLMPaste = TWMPaste;
-  { @exclude }
-  TLMSetFocus = TWMSetFocus;
-  { @exclude }
-  TLMSize = TWMSize;
-  { @exclude }
-  TLMVScroll = TWMVScroll;
-
- {$IFNDEF COMPILER17_UP}
-  { Support for Win64 messaging. }
-  LONG_PTR = Longint;
- {$ENDIF}
-{$ENDIF}
-
   //PInteger = ^Integer; defined by System.pas
   { Static array for Integer. }
   TIntegers = array[0..MaxInt div SizeOf(Integer) - 1] of Integer;
@@ -360,9 +228,9 @@ type
   { TKString is UTF8 string in Lazarus. }
   TKString = string;
   { TKChar is UTF8 character in Lazarus. }
-  TKChar = TUTF8Char;
+  TKChar = string[7]; // UTF-8 character is at most 6 bytes plus a #0
   { PKChar is pointer to UTF8 character in Lazarus. }
-  PKChar = ^TUTF8Char;
+  PKChar = ^TKChar;
   { PKText is PChar (null terminated UTF8 string) in Lazarus. }
   PKText = PChar;
 {$ELSE}
@@ -390,7 +258,7 @@ type
   { Useful structure to handle general data and size as a single item }
   TDataSize = record
     Data: Pointer;
-    Size: Integer;
+    Size: Int64;
   end;
   { Pointer for TDataSize }
   PDataSize = ^TDataSize;
@@ -408,28 +276,6 @@ type
     UseThousandSep: Boolean;
   end;
 
-  { Record for LCL context switching (e.g. between app and shared library). }
-  TKAppContext = record
-    Application: TApplication;
-    Screen: TScreen;
-    GlobalNameSpace: IReadWriteSync;
-    MainThreadID: LongWord;
-    IntConstList: TThreadList;
-  {$IFDEF FPC}
-    WidgetSet: TWidgetSet;
-    DragManager: TDragManager;
-  {$ENDIF}
-  end;
-
-  { Pointer to TKAppContext }
-  PKAppContext = ^TKAppContext;
-
-{$IFDEF FPC}
-  TKClipboardFormat = TClipboardFormat;
-{$ELSE}
-  TKClipboardFormat = Word;
-{$ENDIF}
-
   { @abstract(Declares a structure that holds both column and row span of a cell)
     <UL>
     <LH>Members:</LH>
@@ -439,6 +285,125 @@ type
   TKCellSpan = record
     ColSpan: Integer;
     RowSpan: Integer;
+  end;
+
+  { @abstract(Declares a structure that holds point coordinates as 64-bit wide integers)
+    <UL>
+    <LH>Members:</LH>
+    <LI><I>X</I> - X coord.</LI>
+    <LI><I>Y</I> - Y coord.</LI>
+    </UL> }
+  TKPoint64 = record
+    X, Y: Int64;
+  end;
+
+  { Pointer }
+  PKPoint64 = ^TKPoint64;
+
+  { @abstract(Declares a structure that holds rectangle coordinates as 64-bit wide integers)
+    <UL>
+    <LH>Members:</LH>
+    <LI><I>Left</I> - left coord.</LI>
+    <LI><I>Right</I> - right coord.</LI>
+    <LI><I>Top</I> - top coord.</LI>
+    <LI><I>Bottom</I> - bottom coord.</LI>
+    </UL> }
+  TKRect64 = record
+    Left, Right, Top, Bottom: Int64;
+  end;
+
+  { Pointer }
+  PKRect64 = ^TKRect64;
+
+  { @abstract(Declares the digit position in a hex string)
+    <UL>
+    <LH>Members:</LH>
+    <LI><I>Index</I> - byte index</LI>
+    <LI><I>Digit</I> - digit index</LI>
+    </UL>
+  }
+  TKHexDigitPosition = record
+    Index: Int64;
+    Digit: Integer;
+  end;
+
+  TKLogType = (
+    lgNone,
+    lgError,
+    lgWarning,
+    lgNote,
+    lgHint,
+    lgInfo,
+    lgInputError,
+    lgIOError,
+    lgAll
+  );
+
+  TKObjectList = class;
+
+  TKObject = class(TObject)
+  private
+    FParent: TKObjectList;
+    procedure SetParent(const Value: TKObjectList);
+  protected
+    FUpdateLock: Integer;
+    procedure CallBeforeUpdate; virtual;
+    procedure CallAfterUpdate; virtual;
+    procedure ParentChanged; virtual;
+  public
+    constructor Create; virtual;
+    procedure Assign(ASource: TKObject); virtual;
+    function EqualProperties(AValue: TKObject): Boolean; virtual;
+    procedure LockUpdate; virtual;
+    procedure UnLockUpdate; virtual;
+    function UpdateUnlocked: Boolean; virtual;
+    property Parent: TKObjectList read FParent write SetParent;
+  end;
+
+  TKObjectClass = class of TKObject;
+
+  TKObjectList = class(TObjectList)
+  protected
+    FUpdateLock: Integer;
+    procedure CallBeforeUpdate; virtual;
+    procedure CallAfterUpdate; virtual;
+  public
+    constructor Create; virtual;
+    function Add(AObject: TObject): Integer;
+    procedure Assign(ASource: TKObjectList); virtual;
+    function EqualProperties(AValue: TKObjectList): Boolean; virtual;
+    procedure Insert(Index: Integer; AObject: TObject);
+    procedure LockUpdate; virtual;
+    procedure UnLockUpdate; virtual;
+    function UpdateUnlocked: Boolean; virtual;
+  end;
+
+  TKPersistent = class(TPersistent)
+  private
+    FChanged: Boolean;
+    FUpdateLock: Integer;
+  protected
+    { Call in property setters to track changes to this class. }
+    procedure Changed;
+    { Override to perform requested actions when changing properties in this class.
+      Update will be called either immediately when you call Changed or on next
+      UnlockUpdate call if Changed has been called while updating was locked. }
+    procedure Update; virtual; abstract;
+  public
+    { Creates the instance. }
+    constructor Create; virtual;
+    { Locks updating. Use this if you assign many properties at the
+      same time. Every LockUpdate call must have a corresponding
+      @link(TKPersistent.UnlockUpdate) call, please use a try-finally section. }
+    procedure LockUpdate;
+    { Unlocks page setup updating and updates the page settings.
+      Each @link(TKPersistent.LockUpdate) call must be always followed
+      by the UnlockUpdate call. }
+    procedure UnlockUpdate(ACallUpdate: Boolean = True);
+    { Returns True if updating is not locked, i.e. there is no open
+      LockUpdate and UnlockUpdate pair. }
+    function UpdateUnlocked: Boolean;
+    property UpdateLock: Integer read FUpdateLock;
   end;
 
 { Replaces possible decimal separators in S with DecimalSeparator variable.}
@@ -463,29 +428,11 @@ type
 function BinarySearch(AData: Pointer; ACount: Integer; KeyPtr: Pointer;
   ACompareProc: TBSCompareProc; ASortedDown: Boolean): Integer;
 
-{ Under Windows this function calls the WinAPI TrackMouseEvent. Under other OSes
-  the implementation is still missing. }
-procedure CallTrackMouseEvent(Control: TWinControl; var Status: Boolean);
-
-{ Center window identified by CenteredWnd with regard to another window BoundWnd. }
-procedure CenterWindowInWindow(CenteredWnd, BoundWnd: HWnd);
-
-{ Center window identified by CenteredWnd with regard to main screen. }
-procedure CenterWindowOnScreen(CenteredWnd: HWnd);
-
 { Compiler independent Delphi2009-like CharInSet function for ANSI characters. }
 function CharInSetEx(AChar: AnsiChar; const ASet: TKSysCharSet): Boolean; overload;
 
 { Compiler independent Delphi2009-like CharInSet function for Unicode characters. }
 function CharInSetEx(AChar: WideChar; const ASet: TKSysCharSet): Boolean; overload;
-
-{ Load clipboard data to AStream in a format specified by AFormat (if any).
-  Loads also AText if clipboard has some data in text format. }
-function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
-
-{ Save data from AStream to clipboard in a format specified by AFormat.
-  Optional AText can be saved in text format. }
-function ClipboardSaveStreamAs(const AFormat: string; AStream: TStream; const AText: TKString): Boolean;
 
 { Compares two Integers. Returns 1 if I1 > I2, -1 if I1 < I2 and 0 if I1 = I2. }
 function CompareIntegers(I1, I2: Integer): Integer;
@@ -527,50 +474,17 @@ function DigitToNibble(Digit: AnsiChar; var Nibble: Byte): Boolean;
   the result will be incremented. }
 function DivUp(Dividend, Divisor: Integer): Integer;
 
+{ Performs 64-bit integer division. If there is a nonzero remainder,
+  the result will be incremented. }
+function DivUp64(Dividend, Divisor: Int64): Int64;
+
 { Performs integer division. If there is a nonzero remainder,
   the result will be decremented. }
 function DivDown(Dividend, Divisor: Integer): Integer;
 
-{ Returns True if focused window is some text editing window, such as TEdit. }
-function EditIsFocused(AMustAllowWrite: Boolean): Boolean;
-
-{ Returns True if some text editing window is focused and contains a selectable text. }
-function EditFocusedTextCanCopy: Boolean;
-
-{ Returns True if some non-readonly text editing window is focused and contains a selectable text. }
-function EditFocusedTextCanCut: Boolean;
-
-{ Returns True if some non-readonly text editing window is focused. }
-function EditFocusedTextCanDelete: Boolean;
-
-{ Returns True if some non-readonly text editing window is focused and clipboard is not empty. }
-function EditFocusedTextCanPaste: Boolean;
-
-{ Returns True if the focused text editing window can perform an undo operation. }
-function EditFocusedTextCanUndo: Boolean;
-
-{ Performs an undo operation on the focused text editing window. }
-procedure EditUndoFocused;
-
-{ Performs a delete operation on the focused text editing window. }
-procedure EditDeleteFocused;
-
-{ Performs a clipboard cut operation on the focused text editing window. }
-procedure EditCutFocused;
-
-{ Performs a clipboard copy operation on the focused text editing window. }
-procedure EditCopyFocused;
-
-{ Performs a clipboard paste operation on the focused text editing window. }
-procedure EditPasteFocused;
-
-{ Performs a select all operation on the focused text editing window. }
-procedure EditSelectAllFocused;
-
-{ Enables or disables all children of AParent depending on AEnabled.
-  If ARecursive is True then the function applies to whole tree of controls
-  owned by AParent. }
-procedure EnableControls(AParent: TWinControl; AEnabled: Boolean; ARecursive: Boolean = True);
+{ Performs 64-bit integer division. If there is a nonzero remainder,
+  the result will be decremented. }
+function DivDown64(Dividend, Divisor: Int64): Int64;
 
 { Ensures the path given by APath has slash at the end. }
 procedure EnsureLastPathSlash(var APath: string);
@@ -610,33 +524,20 @@ procedure Exchange(var Value1, Value2: Extended); overload;
 { Swaps values of two Char variables. }
 procedure Exchange(var Value1, Value2: Char); overload;
 
-{ Fills the message record. }
-function FillMessage(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): TLMessage;
-
-{ Searches for a child control. Can search recursively. }
-function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean = True): TControl;
+{ Returns file name without path and extension. }
+function ExtractFileRawName(const APath: string): string;
 
 { Formats the given currency value with to specified parameters. Not thread safe. }
 function FormatCurrency(Value: Currency; const AFormat: TKCurrencyFormat): TKString;
 
-{ Backups application context, e.g. when calling a shared library. }
-function GetAppContext(var Ctx: TKAppContext): Boolean;
-
-{ Returns the module version for given module. Works under WinX only. }
-function GetAppVersion(const ALibName: string; var MajorVersion, MinorVersion, BuildNumber, RevisionNumber: Word): Boolean;
+{ Returns the module version for given module. Tested under WinX, Linux, OSX. }
+function GetAppVersion(const ALibName: string; out MajorVersion, MinorVersion, BuildNumber, RevisionNumber: Word): Boolean;
 
 { Returns number of a specific character in a string. }
 function GetCharCount(const AText: TKString; AChar: TKChar): Integer;
 
-{ Returns the Text property of any TWinControl instance as WideString (up to Delphi 2007)
-  or string (Delphi 2009, Lazarus). }
-function GetControlText(Value: TWinControl): TKString;
-
 { Returns the standard locale dependent format settings. }
 function GetFormatSettings: TFormatSettings;
-
-{ Returns current status of Shift, Alt and Ctrl keys. }
-function GetShiftState: TShiftState;
 
 { Converts an integer into binary string with custom alignment
   (given by Digits). }
@@ -714,11 +615,11 @@ function MinMax(Value, Min, Max: Double): Double; overload;
 function MinMax(Value, Min, Max: Extended): Extended; overload;
 {$ENDIF}
 
+{ Fill the data & size structure. }
+function MakeDataSize(AData: Pointer; ASize: Integer): TDataSize;
+
 { Converts nibble to hexadecimal digit. }
 function NibbleToDigit(Nibble: Byte; UpperCase: Boolean): AnsiChar;
-
-{ Open URL in external browser. }
-procedure OpenURLWithShell(const AText: TKString);
 
 type
   { Callback for quicksort data item comparison. }
@@ -747,6 +648,21 @@ procedure OffsetPoint(var APoint: TPoint; const AOffset: TPoint); overload;
 { Normalizes the given input rectangle. }
 function NormalizeRect(const ARect: TRect): TRect;
 
+{ Create 64-bit point structure. }
+function Point64(AX, AY: Int64): TKPoint64;
+
+{ Convert point structure to 64-bit point structure. }
+function PointToPoint64(const APoint: TPoint): TKPoint64;
+
+{ Convert point structure to 64-bit point structure. }
+function Point64ToPoint(const APoint: TKPoint64): TPoint;
+
+{ Examines if APoint lies within ARect. }
+function Pt64InRect(const ARect: TRect; const APoint: TKPoint64): Boolean;
+
+{ Create 64-bit rectangle structure. }
+function Rect64(ALeft, ATop, ARight, ABottom: Int64): TKRect64;
+
 { Examines if some part of Rect lies within Bounds. }
 function RectInRect(Bounds, Rect: TRect): Boolean;
 
@@ -758,17 +674,6 @@ procedure OffsetRect(var ARect: TRect; AX, AY: Integer); overload;
 
 { Add AOffset to ARect. }
 procedure OffsetRect(var ARect: TRect; const AOffset: TPoint); overload;
-
-{ Restores application context, e.g. when calling a shared library. }
-function SetAppContext(const Ctx: TKAppContext): Boolean;
-
-{ Under Windows this function calls the WinAPI SetWindowRgn. Under other OSes
-  the implementation is still missing. }
-procedure SetControlClipRect(AControl: TWinControl; const ARect: TRect);
-
-{ Modifies the Text property of any TWinControl instance. The value is given as
-  WideString (up to Delphi 2007) or string (Delphi 2009, Lazarus). }
-procedure SetControlText(Value: TWinControl; const Text: TKString);
 
 { Ensures the path given by APath has no slash at the end. }
 procedure StripLastPathSlash(var APath: string);
@@ -829,7 +734,7 @@ function StringToUTF8(const AText: string): AnsiString;
 { Converts specified character of TKString into TKChar. }
 function StringToChar(const AText: TKString; AIndex: Integer): TKChar;
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 function GetWindowsFolder(CSIDL: Cardinal; var APath: string): Boolean;
 
 function RunExecutable(const AFileName: string; AWaitForIt: Boolean): DWORD;
@@ -846,13 +751,80 @@ function UnicodeStringReplace(const AText, AOldPattern, ANewPattern: TKString;
 
 function UTF8ToString(const AText: AnsiString): string;
 
+{ Creates a selection structure from given Index and Digit parameters }
+function MakeHexDigitPosition(Index: Int64; Digit: Integer): TKHexDigitPosition;
+
+{ Converts a hexadecimal digit character ('0'..'F') to binary value }
+function DigitToBin(Value: AnsiChar): Integer;
+
+{ Examines/converts hexadecimal digit string to binary value string. Returns
+  True if the digit string is valid.
+  <UL>
+  <LH>Parameters:</LH>
+  <LI><I>S</I> - hexadecimal digit string (e.g. 'AF01 DC05 3'). White spaces will
+  be ignored. When Convert is True, the converted binary value string will be returned
+  via this parameter (in this exammple '#A#F#0#1#D#C#0#5#3').</LI>
+  <LI><I>Convert</I> - the digit string will be converted if True, otherwise it will
+  be examined only.</LI>
+  </UL> }
+function DigitsToBinStr(var S: AnsiString; Convert: Boolean = True): Boolean;
+
+{ Converts a binary value string into binary data. If the binary value string
+  is not divisible by 2, it will be right padded with zero. Example:
+  '#A#F#0#1#D#C#0#5#3' is converted into '#AF#01#DC#05#30'. }
+function BinStrToBinary(const S: AnsiString): AnsiString;
+
+{ Converts binary value (0..15) to hexadecimal digit character ('0'..'F') }
+function BinToDigit(Value: Byte): AnsiChar;
+
+{ Converts binary data into hexadecimal digit string.
+  <UL>
+  <LH>Parameters:</LH>
+  <LI><I>Buffer</I> - binary data - intended for @link(TKCustomHexEditor.Buffer)</LI>
+  <LI><I>SelStart, SelEnd</I> - specifies which part of the buffer is about to be
+  converted. SelStart.Index must be lower or equal to SelEnd.Index - intended for
+  @link(TKCustomHexEditor.GetRealSelStart) and @link(TKCustomHexEditor.GetRealSelEnd).</LI>
+  </UL>
+  Example: '#AF#01#DC#05#30' is converted into 'AF01DC0530'.
+  If AInsertSpaces is True then resulting string is 'AF 01 DC 05 30'. }
+function BinaryToDigits(Buffer: PBytes; SelStart, SelEnd: TKHexDigitPosition;
+  AInsertSpaces: Boolean = False): AnsiString; overload;
+
+{ Convertes binary data into hexadecimal digit string. Entire data used. }
+function BinaryToDigits(Buffer: PBytes; ASize: Int64;
+  AInsertSpaces: Boolean = False): AnsiString; overload;
+
+{ Convertes binary data into hexadecimal digit string. Uses AnsiString as source data. }
+function BinaryToDigits(const Source: AnsiString;
+  AInsertSpaces: Boolean = False): AnsiString; overload;
+
+{ Converts a binary value string into hexadecimal digit string. If the binary value string
+  is not divisible by 2, it will be trimmed. Example:
+  '#A#F#0#1#D#C#0#5#3' is converted into 'AF01DC05'.
+  If AInsertSpaces is True then resulting string is 'AF 01 DC 05'. }
+function BinStrToDigits(const Source: AnsiString;
+  AInsertSpaces: Boolean = False): AnsiString;
+
+{ Insert spaces into hexadecimal digit string.
+  Example: 'AF01DC05' becomes 'AF 01 DC 05'. }
+function InsertSpacesToDigits(const Source: AnsiString): AnsiString;
+
+{ Replaces a hexadecimal digit in the given binary value. Returns the original
+  value with a replaced digit.
+  <UL>
+  <LH>Parameters:</LH>
+  <LI><I>Value</I> - original binary value</LI>
+  <LI><I>Digit</I> - digit value (0..15)</LI>
+  <LI><I>Pos</I> - digit position (order)</LI>
+  </UL>
+  Example: Value = $A18D, Digit = $C, Pos = 3: Result = $AC8D }
+function ReplaceDigit(Value, Digit, Pos: Integer): Integer;
+
 implementation
 
 uses
   Math, TypInfo
-{$IFDEF USE_WINAPI}
-  , ShlObj, ShellApi
-{$ELSE}
+{$IFDEF FPC}
   , versionresource
 {$ENDIF}
 {$IFDEF USE_WIDEWINPROCS}
@@ -861,7 +833,199 @@ uses
 {$IFDEF FPC}
   , LConvEncoding
 {$ENDIF}
-  , KMemo;
+  ;
+
+{ TKObject }
+
+constructor TKObject.Create;
+begin
+  inherited;
+  FParent := nil;
+  FUpdateLock := 0;
+end;
+
+procedure TKObject.Assign(ASource: TKObject);
+begin
+end;
+
+procedure TKObject.CallAfterUpdate;
+begin
+end;
+
+procedure TKObject.CallBeforeUpdate;
+begin
+end;
+
+function TKObject.EqualProperties(AValue: TKObject): Boolean;
+begin
+  Result := True;
+end;
+
+procedure TKObject.LockUpdate;
+begin
+  if FUpdateLock <= 0 then
+    CallBeforeUpdate;
+  Inc(FUpdateLock);
+end;
+
+procedure TKObject.ParentChanged;
+begin
+end;
+
+procedure TKObject.SetParent(const Value: TKObjectList);
+begin
+  if Value <> FParent then
+  begin
+    FParent := Value;
+    ParentChanged;
+  end;
+end;
+
+procedure TKObject.UnLockUpdate;
+begin
+  if FUpdateLock > 0 then
+  begin
+    Dec(FUpdateLock);
+    if FUpdateLock = 0 then
+      CallAfterUpdate;
+  end;
+end;
+
+function TKObject.UpdateUnlocked: Boolean;
+begin
+  Result := FUpdateLock <= 0;
+end;
+
+{ TKObjectList }
+
+constructor TKObjectList.Create;
+begin
+  inherited;
+  FUpdateLock := 0;
+end;
+
+function TKObjectList.Add(AObject: TObject): Integer;
+begin
+  if AObject is TKObject then
+    TKObject(AObject).Parent := Self;
+  Result := inherited Add(AObject);
+end;
+
+procedure TKObjectList.Assign(ASource: TKObjectList);
+var
+  I: Integer;
+  Cls: TKObjectClass;
+  SrcItem, DstItem: TKObject;
+begin
+  if ASource <> nil then
+  begin
+    Clear;
+    for I := 0 to ASource.Count - 1 do
+    begin
+      SrcItem := ASource.Items[I] as TKObject;
+      Cls := TKObjectClass(SrcItem.ClassType);
+      DstItem := Cls.Create;
+      DstItem.Parent := Self;
+      DstItem.Assign(SrcItem);
+      Add(DstItem);
+    end;
+  end;
+end;
+
+procedure TKObjectList.CallBeforeUpdate;
+begin
+end;
+
+procedure TKObjectList.CallAfterUpdate;
+begin
+end;
+
+function TKObjectList.EqualProperties(AValue: TKObjectList): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  if AValue <> nil then
+  begin
+    Result := AValue.Count = Count;
+    if Result then
+    begin
+      for I := 0 to Count - 1 do
+        if not TKObject(Items[I]).EqualProperties(TKObject(AValue[I])) then
+        begin
+          Result := False;
+          Break;
+        end;
+    end;
+  end;
+end;
+
+procedure TKObjectList.Insert(Index: Integer; AObject: TObject);
+begin
+  if AObject is TKObject then
+    TKObject(AObject).Parent := Self;
+  inherited Insert(Index, AObject);
+end;
+
+procedure TKObjectList.LockUpdate;
+begin
+  if FUpdateLock <= 0 then
+    CallBeforeUpdate;
+  Inc(FUpdateLock);
+end;
+
+procedure TKObjectList.UnLockUpdate;
+begin
+  if FUpdateLock > 0 then
+  begin
+    Dec(FUpdateLock);
+    if FUpdateLock = 0 then
+      CallAfterUpdate;
+  end;
+end;
+
+function TKObjectList.UpdateUnlocked: Boolean;
+begin
+  Result := FUpdateLock <= 0;
+end;
+
+{ TKPersistent }
+
+constructor TKPersistent.Create;
+begin
+  inherited;
+  FUpdateLock := 0;
+  FChanged := False;
+end;
+
+procedure TKPersistent.Changed;
+begin
+  if FUpdateLock = 0 then
+    Update
+  else
+    FChanged := True;
+end;
+
+procedure TKPersistent.LockUpdate;
+begin
+  Inc(FUpdateLock);
+  FChanged := False;
+end;
+
+procedure TKPersistent.UnlockUpdate(ACallUpdate: Boolean);
+begin
+  if FUpdateLock > 0 then
+  begin
+    Dec(FUpdateLock);
+    if (FUpdateLock = 0) and FChanged and ACallUpdate then
+      Update;
+  end;
+end;
+
+function TKPersistent.UpdateUnlocked: Boolean;
+begin
+  Result := FUpdateLock = 0;
+end;
 
 function AdjustDecimalSeparator(const S: string): string;
 var
@@ -925,49 +1089,6 @@ begin
     Result := Index;
 end;
 
-
-procedure CallTrackMouseEvent(Control: TWinControl; var Status: Boolean);
-{$IFDEF USE_WINAPI}
-var
-  TE: TTrackMouseEvent;
-begin
-  if not Status then
-  begin
-    TE.cbSize := SizeOf(TE);
-    TE.dwFlags := TME_LEAVE;
-    TE.hwndTrack := Control.Handle;
-    TE.dwHoverTime := HOVER_DEFAULT;
-    TrackMouseEvent(TE);
-    Status := True;
-  end;
-end;
-{$ELSE}
-begin
-  // This is a TODO for Lazarus team.
-end;
-{$ENDIF}
-
-procedure CenterWindowInWindow(CenteredWnd, BoundWnd: HWnd);
-var
-  R1, R2: TRect;
-begin
-  GetWindowRect(CenteredWnd, R1);
-  GetWindowRect(BoundWnd, R2);
-  R1.Left := Max((R2.Right - R2.Left - R1.Right + R1.Left) div 2, 0);
-  R1.Top := Max((R2.Bottom - R2.Top - R1.Bottom + R1.Top) div 2, 0);
-  SetWindowPos(CenteredWnd, 0, R1.Left, R1.Top, 0, 0, SWP_NOSIZE or SWP_NOZORDER);
-end;
-
-procedure CenterWindowOnScreen(CenteredWnd: HWnd);
-var
-  R: TRect;
-begin
-  GetWindowRect(CenteredWnd, R);
-  R.Left := Max((Screen.Width - R.Right + R.Left) div 2, 0);
-  R.Top := Max((Screen.Height - R.Bottom + R.Top) div 2, 0);
-  SetWindowPos(CenteredWnd, 0, R.Left, R.Top, 0, 0, SWP_NOSIZE or SWP_NOZORDER);
-end;
-
 function CharInSetEx(AChar: AnsiChar; const ASet: TKSysCharSet): Boolean;
 begin
   Result := AChar in ASet;
@@ -981,108 +1102,6 @@ begin
   {$ELSE}
     (AnsiChar(AChar) in ASet);
   {$ENDIF}
-end;
-
-function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
-var
-  Fmt: TKClipboardFormat;
-  Data: Cardinal;
-begin
-  Result := False;
-{$IFDEF FPC}
-  with Clipboard do
-  begin
-    Fmt := RegisterClipboardFormat(AFormat);
-    if (Fmt <> 0) and HasFormat(Fmt) then
-    begin
-      Clipboard.GetFormat(Fmt, AStream);
-      Result := True;
-    end else
-    begin
-      AText := AsText;
-      Result := AText <> '';
-    end;
-  end;
-{$ELSE}
-  Fmt := RegisterClipboardFormat(PChar(AFormat));
-  if Fmt <> 0 then
-  begin
-    Data := 0;
-    try
-      with Clipboard do
-      begin
-        Open;
-        try
-          Data := GetAsHandle(Fmt);
-          if Data <> 0 then
-          begin
-            AStream.Write(GlobalLock(Data)^, GlobalSize(Data));
-            GlobalUnlock(Data);
-            Result := True;
-          end else
-          begin
-            AText := AsText;
-            Result := AText <> '';
-          end;
-        finally
-          Close;
-        end;
-      end;
-    except
-      GlobalFree(Data);
-    end;
-  end else
-    Clipboard.AsText := AText;
-{$ENDIF}
-end;
-
-function ClipboardSaveStreamAs(const AFormat: string; AStream: TStream; const AText: TKString): Boolean;
-var
-  Fmt: TKClipboardFormat;
-  Data: Cardinal;
-begin
-  Result := False;
-{$IFDEF FPC}
-  with Clipboard do
-  begin
-    Clear;
-    AsText := AText;
-    Fmt := RegisterClipboardFormat(AFormat);
-    if Fmt <> 0 then
-    begin
-      AStream.Seek(0, soFromBeginning);
-      AddFormat(Fmt, AStream);
-      Result := True;
-    end;
-  end;
-{$ELSE}
-  Clipboard.Clear;
-  Fmt := RegisterClipboardFormat(PChar(AFormat));
-  if Fmt <> 0 then
-  begin
-    Data := GlobalAlloc(GHND or GMEM_SHARE, AStream.Size);
-    if Data <> 0 then
-    try
-      AStream.Seek(0, soFromBeginning);
-      AStream.Read(GlobalLock(Data)^, AStream.Size);
-      GlobalUnlock(Data);
-      with Clipboard do
-      begin
-        Open;
-        try
-          Clipboard.AsText := AText;
-          SetAsHandle(Fmt, Data);
-        finally
-          Close;
-        end;
-      end;
-      Result := True;
-    except
-      GlobalFree(Data);
-    end;
-  end else
-    Clipboard.AsText := AText;
-{$ENDIF}
 end;
 
 function CompareIntegers(I1, I2: Integer): Integer;
@@ -1226,6 +1245,16 @@ begin
     Result := Dividend div Divisor;
 end;
 
+function DivUp64(Dividend, Divisor: Int64): Int64;
+begin
+  if Divisor = 0 then
+    Result := 0
+  else if Dividend mod Divisor > 0 then
+    Result := Dividend div Divisor + 1
+  else
+    Result := Dividend div Divisor;
+end;
+
 function DivDown(Dividend, Divisor: Integer): Integer;
 begin
   if Divisor = 0 then
@@ -1236,156 +1265,14 @@ begin
     Result := Dividend div Divisor;
 end;
 
-{$IFDEF USE_WINAPI}
-function EditFocusedHandle(AMustAllowWrite: Boolean): THandle;
-var
-  Len: Integer;
-  Wnd: HWND;
-  S: string;
-  C: TWinControl;
+function DivDown64(Dividend, Divisor: Int64): Int64;
 begin
-  Result := 0;
-  Wnd := GetFocus;
-  C := FindControl(Wnd);
-  if (C <> nil) and
-    (C is TCustomEdit) and (not AMustAllowWrite or not TEdit(C).ReadOnly) or
-    (C is TCustomMemo) and (not AMustAllowWrite or not TMemo(C).ReadOnly) or
-    (C is TComboBox) and (TComboBox(C).Style in [csSimple, csDropDown])
-{$IFnDEF FPC}
-     or (C is TRichEdit) and (not AMustAllowWrite or not TRichEdit(C).ReadOnly)
-{$ENDIF}
-   or (C is TKCustomMemo) and (not AMustAllowWrite or not TKCustomMemo(C).ReadOnly)
-  then
-    Result := Wnd
+  if Divisor = 0 then
+    Result := 0
+  else if Dividend mod Divisor < 0 then
+    Result := Dividend div Divisor - 1
   else
-  begin
-    SetLength(S, 100);
-    Len := GetClassName(Wnd, PChar(S), 100);
-    if Len > 0 then
-    begin
-      SetLength(S, Len);
-      S := UpperCase(S);
-      if (S = 'EDIT') then
-        Result := Wnd;
-    end;
-  end;
-end;
-{$ENDIF}
-
-function EditIsFocused(AMustAllowWrite: Boolean): Boolean;
-{$IFDEF USE_WINAPI}
-begin
-  Result := EditFocusedHandle(AMustAllowWrite) <> 0;
-end;
-{$ELSE}
-begin
-  // can this be implemented somehow?
-  Result := False;
-end;
-{$ENDIF}
-
-function EditFocusedTextHasSelection(AMustAllowWrite: Boolean): Boolean;
-{$IFDEF USE_WINAPI}
-var
-  A, B: Integer;
-  Wnd: THandle;
-begin
-  Wnd := EditFocusedHandle(AMustAllowWrite);
-  if Wnd <> 0 then
-  begin
-    SendMessage(Wnd, EM_GETSEL, WParam(@A), LParam(@B));
-    Result := A <> B;
-  end else
-    Result := False;
-end;
-{$ELSE}
-begin
-  // can this be implemented somehow?
-  Result := False;
-end;
-{$ENDIF}
-
-function EditFocusedTextCanCopy: Boolean;
-begin
-  Result := EditFocusedTextHasSelection(False);
-end;
-
-function EditFocusedTextCanCut: Boolean;
-begin
-  Result := EditFocusedTextHasSelection(True);
-end;
-
-function EditFocusedTextCanDelete: Boolean;
-begin
-  Result := EditIsFocused(True);
-end;
-
-function EditFocusedTextCanPaste: Boolean;
-begin
-  Result := EditIsFocused(True) and ClipBoard.HasFormat(CF_TEXT);
-end;
-
-function EditFocusedTextCanUndo: Boolean;
-begin
-{$IFDEF USE_WINAPI}
-  Result := LongBool(SendMessage(GetFocus, EM_CANUNDO, 0, 0));
-{$ELSE}
-  // can this be implemented somehow?
-  Result := False;
-{$ENDIF}
-end;
-
-procedure EditUndoFocused;
-begin
-{$IFDEF USE_WINAPI}
-  SendMessage(GetFocus, WM_UNDO, 0, 0);
-{$ENDIF}
-end;
-
-procedure EditDeleteFocused;
-begin
-  SendMessage(GetFocus, LM_CLEAR, 0, 0);
-end;
-
-procedure EditCutFocused;
-begin
-  SendMessage(GetFocus, LM_CUT, 0, 0);
-end;
-
-procedure EditCopyFocused;
-begin
-  SendMessage(GetFocus, LM_COPY, 0, 0);
-end;
-
-procedure EditPasteFocused;
-begin
-  SendMessage(GetFocus, LM_PASTE, 0, 0);
-end;
-
-procedure EditSelectAllFocused;
-begin
-{$IFDEF USE_WINAPI}
-  SendMessage(GetFocus, EM_SETSEL, 0, -1);
-{$ENDIF}
-end;
-
-procedure EnableControls(AParent: TWinControl; AEnabled, ARecursive: Boolean);
-
-  procedure DoEnable(AParent: TWinControl);
-  var
-    I: Integer;
-  begin
-    if AParent <> nil then
-      for I := 0 to AParent.ControlCount - 1 do
-      begin
-        AParent.Controls[I].Enabled := AEnabled;
-        if ARecursive and (AParent.Controls[I] is TWinControl) then
-          DoEnable(TWinControl(AParent.Controls[I]));
-      end;
-  end;
-
-begin
-  DoEnable(AParent);
+    Result := Dividend div Divisor;
 end;
 
 procedure EnsureLastPathSlash(var APath: string);
@@ -1512,42 +1399,26 @@ begin
   Value2 := Tmp;
 end;
 
+function ExtractFileRawName(const APath: string): string;
+var
+  I: Integer;
+begin
+  Result := ExtractFileName(APath);
+  I := Length(Result);
+  while I > 1 do
+  begin
+    if Result[I] = '.' then
+    begin
+      SetLength(Result, I - 1);
+      Break;
+    end;
+    Dec(I);
+  end;
+end;
+
 procedure Error(const Msg: string);
 begin
   raise Exception.Create(Msg);
-end;
-
-function FillMessage(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): TLMessage;
-begin
-  Result.Msg := Msg;
-  Result.LParam := LParam;
-  Result.WParam := WParam;
-  Result.Result := 0;
-end;
-
-function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean): TControl;
-
-  function DoSearch(AParent: TWinControl): TControl;
-  var
-    I: Integer;
-    Ctrl: TControl;
-  begin
-    Result := nil;
-    if AParent <> nil then
-      for I := 0 to AParent.ControlCount - 1 do
-      begin
-        Ctrl := AParent.Controls[I];
-        if Ctrl.Name = AName then
-          Result := Ctrl
-        else if ARecursive and (Ctrl is TWinControl) then
-          Result := DoSearch(TWinControl(Ctrl));
-        if Result <> nil then
-          Break;
-      end;
-  end;
-
-begin
-  Result := DoSearch(AParent);
 end;
 
 function FormatCurrency(Value: Currency; const AFormat: TKCurrencyFormat): TKString;
@@ -1571,25 +1442,9 @@ begin
   end;
 end;
 
-function GetAppContext(var Ctx: TKAppContext): Boolean;
-begin
-  Ctx.Application := Forms.Application;
-  Ctx.Screen := Forms.Screen;
-  Ctx.GlobalNameSpace := Classes.GlobalNameSpace;
-//  Ctx.IntConstList := Classes.IntConstList;
-{$IFDEF FPC}
- {$IFnDEF DARWIN}
-  Ctx.MainThreadID := Classes.MainThreadID;
- {$ENDIF}
-  Ctx.DragManager := Controls.DragManager;
-  Ctx.WidgetSet := InterfaceBase.WidgetSet;
-{$ENDIF}
-  Result := True;
-end;
-
-function GetAppVersion(const ALibName: string; var MajorVersion, MinorVersion, BuildNumber, RevisionNumber: Word): Boolean;
+function GetAppVersion(const ALibName: string; out MajorVersion, MinorVersion, BuildNumber, RevisionNumber: Word): Boolean;
 var
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
  dwHandle, dwLen: DWORD;
  BufLen: Cardinal;
  lpData: LPTSTR;
@@ -1602,7 +1457,7 @@ var
 {$ENDIF}
 begin
   Result := False;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   dwLen := GetFileVersionInfoSize(PChar(ALibName), dwHandle);
   if dwLen <> 0 then
   begin
@@ -1660,31 +1515,6 @@ begin
       Inc(Result);
 end;
 
-function GetControlText(Value: TWinControl): TKString;
-
-  function GetTextBuffer(Value: TWinControl): string;
-  begin
-    SetLength(Result, Value.GetTextLen);
-    Value.GetTextBuf(PChar(Result), Length(Result) + 1);
-  end;
-
-begin
-{$IFDEF FPC}
-  Result := GetTextBuffer(Value); // conversion from UTF8 forced anyway
-{$ELSE}
- {$IFDEF STRING_IS_UNICODE}
-  Result := GetTextBuffer(Value);
- {$ELSE}
-  if Value.HandleAllocated and (Win32Platform = VER_PLATFORM_WIN32_NT) then // unicode fully supported
-  begin
-    SetLength(Result, GetWindowTextLengthW(Value.Handle));
-    GetWindowTextW(Value.Handle, PWideChar(Result), Length(Result) + 1);
-  end else
-    Result := GetTextBuffer(Value);
- {$ENDIF}
-{$ENDIF}
-end;
-
 function GetFormatSettings: TFormatSettings;
 begin
 {$IFDEF FPC}
@@ -1696,14 +1526,6 @@ begin
   GetLocaleFormatSettings(GetThreadLocale, Result);
  {$ENDIF}
 {$ENDIF}
-end;
-
-function GetShiftState: TShiftState;
-begin
-  Result := [];
-  if GetKeyState(VK_SHIFT) < 0 then Include(Result, ssShift);
-  if GetKeyState(VK_CONTROL) < 0 then Include(Result, ssCtrl);
-  if GetKeyState(VK_MENU) < 0 then Include(Result, ssAlt);
 end;
 
 function IntToAscii(Value: Int64; Digits: Integer): string;
@@ -2220,6 +2042,12 @@ begin
 end;
 {$ENDIF}
 
+function MakeDataSize(AData: Pointer; ASize: Integer): TDataSize;
+begin
+  Result.Data := AData;
+  Result.Size := ASize;
+end;
+
 function NibbleToDigit(Nibble: Byte; UpperCase: Boolean): AnsiChar;
 begin
   if Nibble < 10 then
@@ -2228,15 +2056,6 @@ begin
     Result := AnsiChar(Ord('A') + Nibble - 10)
   else
     Result := AnsiChar(Ord('a') + Nibble - 10);
-end;
-
-procedure OpenURLWithShell(const AText: TKString);
-begin
-{$IFDEF FPC}
-  OpenURL(AText);
-{$ELSE}
-  ShellExecuteW(Application.MainForm.Handle, 'open', PWideChar(AText), nil, nil, SW_SHOWNORMAL);
-{$ENDIF}
 end;
 
 procedure QuickSortNR(AData: Pointer; ACount: Integer; ACompareProc: TQsCompareProc;
@@ -2377,6 +2196,39 @@ begin
     Exchange(Result.Top, Result.Bottom);
 end;
 
+function Point64(AX, AY: Int64): TKPoint64;
+begin
+  Result.X:= AX;
+  Result.Y:= AY;
+end;
+
+function PointToPoint64(const APoint: TPoint): TKPoint64;
+begin
+  Result.X:= APoint.x;
+  Result.Y:= APoint.y;
+end;
+
+function Point64ToPoint(const APoint: TKPoint64): TPoint;
+begin
+  Result.X:= Integer(APoint.X);
+  Result.Y:= Integer(APoint.Y);
+end;
+
+function Pt64InRect(const ARect: TRect; const APoint: TKPoint64): Boolean;
+begin
+  Result :=
+    (APoint.X >= ARect.Left) and (APoint.X < ARect.Right) and
+    (APoint.Y >= ARect.Top) and (APoint.Y < ARect.Bottom);
+end;
+
+function Rect64(ALeft, ATop, ARight, ABottom: Int64): TKRect64;
+begin
+  Result.Left:= ALeft;
+  Result.Top:= ATop;
+  Result.Right:= ARight;
+  Result.Bottom:= ABottom;
+end;
+
 function RectInRect(Bounds, Rect: TRect): Boolean;
 begin
   Result :=
@@ -2407,56 +2259,6 @@ begin
   Inc(ARect.Bottom, AOffset.Y);
 end;
 
-function SetAppContext(const Ctx: TKAppContext): Boolean;
-begin
-  Forms.Application := Ctx.Application;
-  Forms.Screen := Ctx.Screen;
-  Classes.GlobalNameSpace := Ctx.GlobalNameSpace;
-{$IFDEF FPC}
-//  Classes.IntConstList := Ctx.IntConstList;
-{$IFnDEF DARWIN}
-  Classes.MainThreadID := Ctx.MainThreadID;
-{$ENDIF}
-  Controls.DragManager := Ctx.DragManager;
-  InterfaceBase.WidgetSet := Ctx.WidgetSet;
-{$ENDIF}
-  Result := True;
-end;
-
-procedure SetControlClipRect(AControl: TWinControl; const ARect: TRect);
-begin
-  if AControl.HandleAllocated then
-  begin
-  {$IFDEF USE_WINAPI}
-    SetWindowRgn(AControl.Handle, CreateRectRgn(0, 0, ARect.Right - ARect.Left, ARect.Bottom - ARect.Top), True);
-  {$ELSE}
-    //how to do that?
-  {$ENDIF}
-  end;
-end;
-
-procedure SetControlText(Value: TWinControl; const Text: TKString);
-
-  procedure SetTextBuffer(Value: TWinControl; const Text: string);
-  begin
-    Value.SetTextBuf(PChar(Text));
-  end;
-
-begin
-{$IFDEF FPC}
-  SetTextBuffer(Value, Text); // conversion to UTF8 forced anyway
-{$ELSE}
- {$IFDEF STRING_IS_UNICODE}
-  SetTextBuffer(Value, Text);
- {$ELSE}
-  if Value.HandleAllocated and (Win32Platform = VER_PLATFORM_WIN32_NT) then // unicode fully supported
-    SetWindowTextW(Value.Handle, PWideChar(Text))
-  else
-    SetTextBuffer(Value, Text);
- {$ENDIF}
-{$ENDIF}
-end;
-
 procedure StripLastPathSlash(var APath: string);
 begin
   if APath <> '' then
@@ -2472,7 +2274,7 @@ end;
 function StrNextCharIndex(const AText: TKString; Index: Integer): Integer;
 begin
 {$IFDEF FPC}
-  Result := Index + UTF8CharacterLength(@AText[Index]);
+  Result := Index + LazUTF8.UTF8CharacterLength(@AText[Index]);
 {$ELSE}
   if (Word(AText[Index]) >= cUTF16FirstSurrogateBegin) and (Word(AText[Index]) <= cUTF16FirstSurrogateEnd) then
     Result := Index + 2
@@ -2484,7 +2286,7 @@ end;
 function StrPreviousCharIndex(const AText: TKString; Index: Integer): Integer;
 begin
 {$IFDEF FPC}
-  Result := Index - UTF8CharacterLength(@AText[StringCharBegin(AText, Index - 1)]);
+  Result := Index - LazUTF8.UTF8CharacterLength(@AText[StringCharBegin(AText, Index - 1)]);
 {$ELSE}
   if (Word(AText[Index - 1]) >= cUTF16SecondSurrogateBegin) and (Word(AText[Index - 1]) <= cUTF16SecondSurrogateEnd) then
     Result := Index - 2
@@ -2502,7 +2304,7 @@ begin
   while I < ByteIndex do
   begin
   {$IFDEF FPC}
-    Inc(I, UTF8CharacterLength(@AText[I]));
+    Inc(I, LazUTF8.UTF8CharacterLength(@AText[I]));
   {$ELSE}
     if (Word(AText[I]) >= cUTF16FirstSurrogateBegin) or (Word(AText[I]) > cUTF16FirstSurrogateEnd) then
       Inc(I, 2)
@@ -2521,7 +2323,7 @@ begin
   for I := 1 to CPIndex do
   begin
 {$IFDEF FPC}
-    Inc(Result, UTF8CharacterLength(@AText[Result]));
+    Inc(Result, LazUTF8.UTF8CharacterLength(@AText[Result]));
 {$ELSE}
     if (Word(AText[Result]) >= cUTF16FirstSurrogateBegin) and (Word(AText[Result]) <= cUTF16FirstSurrogateEnd) then
       Inc(Result, 2)
@@ -2536,7 +2338,7 @@ end;
 function StringCharBegin(const AText: TKString; Index: Integer): Integer;
 begin
 {$IFDEF FPC}
-  Result := UTF8CharToByteIndex(PChar(AText), Length(AText), Index)
+  Result := LazUTF8.UTF8CharToByteIndex(PChar(AText), Length(AText), Index)
 {$ELSE}
   if (Word(AText[Index - 1]) >= cUTF16SecondSurrogateBegin) and (Word(AText[Index - 1]) <= cUTF16SecondSurrogateEnd) then
     Result := Index - 1
@@ -2550,7 +2352,7 @@ var
   I: Integer;
 begin
 {$IFDEF FPC}
-  Result := UTF8Length(AText)
+  Result := LazUTF8.UTF8Length(AText)
 {$ELSE}
   Result := 0;
   for I := 1 to Length(AText) do
@@ -2581,7 +2383,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF FPC}
-  UTF8Delete(ASource, At, Count);
+  LazUTF8.UTF8Delete(ASource, At, Count);
 {$ELSE}
   ByteFrom := StrCPIndexToByteIndex(ASource, At);
   ByteTo := StrCPIndexToByteIndex(ASource, At + Count);
@@ -2655,13 +2457,13 @@ end;
 function StringToChar(const AText: TKString; AIndex: Integer): TKChar;
 begin
 {$IFDEF FPC}
-  Result := UTF8Copy(AText, AIndex, 1);
+  Result := LazUTF8.UTF8Copy(AText, AIndex, 1);
 {$ELSE}
   Result := AText[AIndex];
 {$ENDIF}
 end;
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 function GetWindowsFolder(CSIDL: Cardinal; var APath: string): Boolean;
 type
   TSHGetFolderPathProc = function(hWnd: HWND; CSIDL: Integer; hToken: THandle;
@@ -2717,7 +2519,7 @@ begin
       GetLastError, 0, @errMsg, 0, nil) <> 0 then
     begin
       try
-        raise Exception.Create ('CreateProcess failed with error "' + String (errMsg) + '".');
+        Error('CreateProcess failed with error "' + String (errMsg) + '".');
       finally
         LocalFree (HLOCAL(errMsg));
       end;
@@ -2728,7 +2530,7 @@ end;
 
 function SystemCodePage: Integer;
 begin
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   Result := getACP;
 {$ELSE}
  {$IF DEFINED(UNIX) and (FPC_FULLVERSION>=20701)}
@@ -2746,7 +2548,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF FPC}
-  Result := WideChar(UTF8CharacterToUnicode(PChar(AText), CharLen));
+  Result := WideChar(LazUTF8.UTF8CharacterToUnicode(PChar(AText), CharLen));
 {$ELSE}
   Result := AText[1];
 {$ENDIF}
@@ -2755,7 +2557,7 @@ end;
 function UnicodeUpperCase(const AText: TKString): TKString;
 begin
 {$IFDEF FPC}
-  Result := UTF8UpperCase(AText);
+  Result := LazUTF8.UTF8UpperCase(AText);
 {$ELSE}
  {$IFDEF STRING_IS_UNICODE}
   Result := AnsiUpperCase(AText);
@@ -2768,7 +2570,7 @@ end;
 function UnicodeLowerCase(const AText: TKString): TKString;
 begin
 {$IFDEF FPC}
-  Result := UTF8LowerCase(AText);
+  Result := LazUTF8.UTF8LowerCase(AText);
 {$ELSE}
  {$IFDEF STRING_IS_UNICODE}
   Result := AnsiLowerCase(AText);
@@ -2781,7 +2583,7 @@ end;
 function UnicodeToNativeUTF(const AParam: WideChar): TKString;
 begin
 {$IFDEF FPC}
-  Result := UnicodeToUTF8(Cardinal(AParam));
+  Result := LazUTF8.UnicodeToUTF8(Cardinal(AParam));
 {$ELSE}
   Result := AParam;
 {$ENDIF}
@@ -2845,6 +2647,191 @@ begin
     Result := System.UTF8Decode(AText);
   {$ENDIF}
 {$ENDIF}
+end;
+
+function MakeHexDigitPosition(Index: Int64; Digit: Integer): TKHexDigitPosition;
+begin
+  Result.Index := Index;
+  Result.Digit := Digit;
+end;
+
+function DigitToBin(Value: AnsiChar): Integer;
+begin
+  if ((Value >= 'a') and (Value <= 'f')) then Result := Ord(Value) - Ord('a') + 10
+  else if ((Value >= 'A') and (Value <= 'F')) then Result := Ord(Value) - Ord('A') + 10
+  else if ((Value >= '0') and (Value <= '9')) then Result := Ord(Value) - Ord('0')
+  else Result := -1;
+end;
+
+function DigitsToBinStr(var S: AnsiString; Convert: Boolean = True): Boolean;
+var
+  I, J, K: Integer;
+  T: AnsiString;
+begin
+  // check and convert text characters to hex values 0..15
+  Result := True;
+  if Convert then
+    SetLength(T, Length(S));
+  J := 0;
+  for I := 1 to Length(S) do if not CharInSetEx(S[I], [cTAB, cSPACE]) then
+  begin
+    K := DigitToBin(S[I]);
+    if K >= 0 then
+    begin
+      if Convert then
+      begin
+        Inc(J);
+        T[J] := AnsiChar(K)
+      end;
+    end else
+    begin
+      Result := False;
+      Break;
+    end;
+  end;
+  if Result and Convert then
+  begin
+    SetLength(T, J);
+    S := T;
+  end;
+end;
+
+function BinStrToBinary(const S: AnsiString): AnsiString;
+var
+  I, J, L: Integer;
+  B1, B2: Byte;
+begin
+  L := Length(S);
+  Result := '';
+  if L > 0 then
+  begin
+    SetLength(Result, DivUp(L, 2));
+    if L = 1 then
+      Result := S
+    else
+    begin
+      J := 1;
+      for I := 1 to Length(Result) do
+      begin
+        B1 := Byte(S[J]); Inc(J);
+        if J <= L then
+        begin
+          B2 := Byte(S[J]); Inc(J);
+        end else
+          B2 := 0;
+        Result[I] := AnsiChar(B1 shl 4 + B2);
+      end;
+    end;
+  end;
+end;
+
+function BinToDigit(Value: Byte): AnsiChar;
+begin
+  if Value >= $10 then
+    Result := '0'
+  else if Value >= $A then
+    Result := AnsiChar(Ord('A') + Value - 10)
+  else
+    Result := AnsiChar(Ord('0') + Value)
+end;
+
+function BinaryToDigits(Buffer: PBytes; SelStart, SelEnd: TKHexDigitPosition;
+  AInsertSpaces: Boolean): AnsiString;
+var
+  I, J, SpaceCount: Integer;
+begin
+  if AInsertSpaces then
+    SpaceCount := SelEnd.Index - SelStart.Index
+  else
+    SpaceCount := 0;
+  SetLength(Result, (SelEnd.Index - SelStart.Index) * cHexDigitCount - SelStart.Digit + SelEnd.Digit + SpaceCount);
+  J := 1;
+  for I := SelStart.Index to SelEnd.Index do
+  begin
+    if ((I > SelStart.Index) or (SelStart.Digit < 1)) and ((I < SelEnd.Index) or (SelEnd.Digit > 0)) then
+    begin
+      Result[J] := BinToDigit((Buffer[I] shr 4) and $F);
+      Inc(J);
+    end;
+    if ((I > SelStart.Index) or (SelStart.Digit < 2)) and ((I < SelEnd.Index) or (SelEnd.Digit > 1)) then
+    begin
+      Result[J] := BinToDigit(Buffer[I] and $F);
+      Inc(J);
+    end;
+    if AInsertSpaces and (I < SelEnd.Index) then
+    begin
+      Result[J] := ' ';
+      Inc(J);
+    end;
+  end;
+end;
+
+function BinaryToDigits(Buffer: PBytes; ASize: Int64; AInsertSpaces: Boolean = False): AnsiString;
+begin
+  Result := BinaryToDigits(Buffer, MakeHexDigitPosition(0, 0), MakeHexDigitPosition(ASize - 1, cHexDigitCount), AInsertSpaces);
+end;
+
+function BinaryToDigits(const Source: AnsiString; AInsertSpaces: Boolean): AnsiString;
+begin
+  Result := BinaryToDigits(PBytes(@Source[1]), MakeHexDigitPosition(0, 0), MakeHexDigitPosition(Length(Source) - 1, cHexDigitCount), AInsertSpaces);
+end;
+
+function BinStrToDigits(const Source: AnsiString; AInsertSpaces: Boolean): AnsiString;
+var
+  I, J, CharLen, SpaceCount: Integer;
+begin
+  CharLen := Length(Source) div 2;
+  if AInsertSpaces then
+    SpaceCount := CharLen - 1
+  else
+    SpaceCount := 0;
+  SetLength(Result, CharLen * 2 + SpaceCount);
+  J := 1;
+  for I := 1 to CharLen do
+  begin
+    Result[J] := BinToDigit(Ord(Source[I * 2 - 1]));
+    Inc(J);
+    Result[J] := BinToDigit(Ord(Source[I * 2]));
+    Inc(J);
+    if AInsertSpaces and (I < CharLen) then
+    begin
+      Result[J] := ' ';
+      Inc(J);
+    end;
+  end;
+end;
+
+function InsertSpacesToDigits(const Source: AnsiString): AnsiString;
+var
+  I, J, CharLen, SpaceCount: Integer;
+begin
+  CharLen := Length(Source) div 2;
+  SpaceCount := CharLen - 1;
+  SetLength(Result, CharLen * 2 + SpaceCount);
+  J := 1;
+  for I := 1 to CharLen do
+  begin
+    Result[J] := Source[I * 2 - 1];
+    Inc(J);
+    Result[J] := Source[I * 2];
+    Inc(J);
+    if I < CharLen then
+    begin
+      Result[J] := ' ';
+      Inc(J);
+    end;
+  end;
+end;
+
+function ReplaceDigit(Value, Digit, Pos: Integer): Integer;
+var
+  I, Mask, O: Integer;
+begin
+  O := 1;
+  for I := Pos to cHexDigitCount - 2 do
+    O := O * cHexBase;
+  Mask := cHexBase - 1;
+  Result := (((Value div O) and not Mask) + (Digit and Mask)) * O + Value mod O;
 end;
 
 end.

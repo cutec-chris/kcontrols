@@ -28,7 +28,7 @@ uses
     Windows, Messages,
   {$ENDIF}
     SysUtils, Classes, Controls, Forms, Graphics, StdCtrls, ComCtrls, Dialogs,
-    KFunctions, KDialogs, KLog
+    KFunctions, KControls, KDialogs, KLog
   {$IFDEF USE_THEMES}
     , Themes
    {$IFNDEF FPC}
@@ -190,7 +190,7 @@ type
     procedure UpdateUpDownPos; dynamic;
     procedure UpDownChange; dynamic;
     procedure UpDownChangingEx(Sender: TObject; var AllowChange: Boolean;
-      NewValue: {$IFDEF COMPILER17_UP}Integer{$ELSE}SmallInt{$ENDIF}; Direction: TUpDownDirection);
+      NewValue: {$IFDEF COMPILER19_UP}Integer{$ELSE}SmallInt{$ENDIF}; Direction: TUpDownDirection);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -881,8 +881,12 @@ var
 begin
   S := '';
   if FDisplayedFormat = nedfAsInput then
-    Fmt := FLastInputFormat
-  else
+  begin
+    if Frac(AValue) <> 0 then
+      Fmt := nedfFloat
+    else
+      Fmt := FLastInputFormat;
+  end else
     Fmt := FDisplayedFormat;
   GetPrefixSuffix(Fmt, Prefix, Suffix);
   case Fmt of
@@ -962,7 +966,8 @@ end;
 function TKCustomNumberEdit.GetValue: Extended;
 begin
   Result := GetFormat(Text, FLastInputFormat);
-  Result := MinMax(Result, FMin, FMax);
+  if neoClampToMinMax in FOptions then
+    Result := MinMax(Result, FMin, FMax);
 end;
 
 procedure TKCustomNumberEdit.SetValue(AValue: Extended);
@@ -1572,7 +1577,7 @@ end;
 
 procedure TKCustomNumberEdit.UpDownChangingEx(Sender: TObject;
   var AllowChange: Boolean; NewValue:
-  {$IFDEF COMPILER18_UP}Integer{$ELSE}SmallInt{$ENDIF}; Direction: TUpDownDirection);
+  {$IFDEF COMPILER19_UP}Integer{$ELSE}SmallInt{$ENDIF}; Direction: TUpDownDirection);
 var
   V: Extended;
 begin
@@ -1584,6 +1589,8 @@ begin
     V := MinMax(NewValue * FRealUpDownStep, FMin, FMax);
     if V <> Value then
     begin
+      if (DisplayedFormat = nedfAsInput) and (neafDec in AcceptedFormats) and (Frac(V) = 0) then
+        LastInputFormat := nedfDec;
       Value := V;
       UpDownChange;
       FUpdateUpDown := True;
@@ -1761,6 +1768,7 @@ begin
       if BF.Execute then
       begin
         Text := BF.Folder;
+        Change;
         if foAddToList in FOptions then
           Items.Insert(0, Text);
         FDlgProperties.InitialDir := ExtractFilePath(Text);
@@ -1784,6 +1792,7 @@ begin
       if SD.Execute then
       begin
         Text := SD.FileName;
+        Change;
         if foAddToList in FOptions then
           Items.Insert(0, Text);
         FDlgProperties.InitialDir := ExtractFilePath(Text);
@@ -1807,6 +1816,7 @@ begin
       if OD.Execute then
       begin
         Text := OD.FileName;
+        Change;
         if foAddToList in FOptions then
           Items.Insert(0, Text);
         FDlgProperties.InitialDir := ExtractFilePath(Text);
@@ -2025,6 +2035,7 @@ begin
     begin
       Text := CorrectPath(Value, FDlgProperties.InitialDir, FOptions, B, FLog);
       if not (csDesigning in ComponentState) then
+      begin
         if B then
         begin
           if foWarning in FOptions then Font.Color := FWarningColor
@@ -2035,7 +2046,10 @@ begin
             if (Items.IndexOf(Text) < 0) and (Text <> '') then
               Items.Insert(0, Text);
         end;
-    end else
+        Change;
+      end;
+    end
+    else
       Text := Value;        
   end;
 end;

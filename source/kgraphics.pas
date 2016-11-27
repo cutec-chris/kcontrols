@@ -27,7 +27,7 @@ interface
 uses
 {$IFDEF FPC}
  // use the LCL interface support whenever possible
- {$IFDEF USE_WINAPI}
+ {$IFDEF MSWINDOWS}
   Windows,
  {$ENDIF}
   GraphType, IntfGraphics, LCLType, LCLIntf, LMessages, LResources,
@@ -37,7 +37,7 @@ uses
   PngImage,
  {$ENDIF}
 {$ENDIF}
-  Classes, Forms, Graphics, Controls, Types, KFunctions
+  Classes, Forms, Graphics, Controls, Types, KFunctions, KControls
 {$IFDEF USE_THEMES}
   , Themes
  {$IFNDEF FPC}
@@ -217,7 +217,7 @@ type
     FDirectCopy: Boolean;
     FHandle: HBITMAP;
     FHeight: Integer;
-  {$IFNDEF USE_WINAPI}
+  {$IFNDEF MSWINDOWS}
     FImage: TLazIntfImage; // Lazarus only
     FMaskHandle: HBITMAP;
   {$ENDIF}
@@ -228,6 +228,7 @@ type
     FWidth: Integer;
     function GetScanLine(Index: Integer): PKColorRecs;
     function GetHandle: HBITMAP;
+    function GetHasAlpha: Boolean;
     function GetPixel(X, Y: Integer): TKColorRec;
     procedure SetPixel(X, Y: Integer; Value: TKColorRec);
   protected
@@ -343,6 +344,8 @@ type
     property DirectCopy: Boolean read FDirectCopy write FDirectCopy;
     { Returns the bitmap handle. }
     property Handle: HBITMAP read GetHandle;
+    { Returns true if alpha channel is nonzero for at least one pixel. }
+    property HasAlpha: Boolean read GetHasAlpha;
     { Specifies the pixel color. Does range checking. }
     property Pixel[X, Y: Integer]: TKColorRec read GetPixel write SetPixel;
     { Returns the pointer to bitmap pixels. }
@@ -353,7 +356,7 @@ type
     property ScanLine[Index: Integer]: PKColorRecs read GetScanLine;
   end;
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   { A simple encapsulation for a Windows or Enhanced metafile. It runs only under Windows and does not use shared images.
     However, it is possible to release metafile handles on assigning to another TKMetafile. }
   TKMetafile = class(TGraphic)
@@ -455,7 +458,7 @@ type
     property VPadding: Integer read FVPadding write FVPadding;
   end;
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   TUpdateLayeredWindowProc = function(Handle: THandle; hdcDest: HDC; pptDst: PPoint;
     _psize: PSize; hdcSrc: HDC; pptSrc: PPoint; crKey: COLORREF; pblend: PBLENDFUNCTION;
     dwFlags: DWORD): Boolean; stdcall;
@@ -476,7 +479,7 @@ type
     FLayered: Boolean;
     FMasterAlpha: Byte;
     FRect: TRect;
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     FBlend: TBlendFunction;
     FUpdateLayeredWindow: TUpdateLayeredWindowProc;
     FWindow: HWND;
@@ -641,8 +644,14 @@ procedure CopyBitmap(DestDC: HDC; DestRect: TRect; SrcDC: HDC; SrcX, SrcY: Integ
 { Creates an empty point. }
 function CreateEmptyPoint: TPoint;
 
+{ Creates an empty point. }
+function CreateEmptyPoint64: TKPoint64;
+
 { Creates an empty rectangle. }
 function CreateEmptyRect: TRect;
+
+{ Creates an empty rectangle. }
+function CreateEmptyRect64: TKRect64;
 
 { Creates an empty rectangular region. }
 function CreateEmptyRgn: HRGN;
@@ -713,6 +722,9 @@ function GetFontAscent(DC: HDC): Integer;
 { Determine the descent of the font currently selected into given DC. }
 function GetFontDescent(DC: HDC): Integer;
 
+{ Try to determine image DPI. }
+function GetImageDPI(AGraphic: Tgraphic): TPoint;
+
 { Raises an exception if GDI resource has not been created. }
 function GDICheck(Value: Integer): Integer;
 
@@ -778,7 +790,7 @@ function VerticalShapePosition(AAlignment: TKVAlign; const ABoundary: TRect; con
 implementation
 
 uses
-  Math, SysUtils, KControls, KRes
+  Math, SysUtils, KRes
 {$IFDEF FPC}
   , FPImage
 {$ELSE}
@@ -982,7 +994,7 @@ end;
 
 procedure CopyBitmap(DestDC: HDC; DestRect: TRect; SrcDC: HDC; SrcX, SrcY: Integer);
 begin
-  {$IFDEF USE_WINAPI}Windows.{$ENDIF}BitBlt(DestDC,
+  {$IFDEF MSWINDOWS}Windows.{$ENDIF}BitBlt(DestDC,
     DestRect.Left, DestRect.Top, DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top,
     SrcDC, 0, 0, SRCCOPY);
 end;
@@ -992,9 +1004,19 @@ begin
   Result := Point(0,0);
 end;
 
+function CreateEmptyPoint64: TKPoint64;
+begin
+  Result := Point64(0,0);
+end;
+
 function CreateEmptyRect: TRect;
 begin
   Result := Rect(0,0,0,0);
+end;
+
+function CreateEmptyRect64: TKRect64;
+begin
+  Result := Rect64(0,0,0,0);
 end;
 
 function CreateEmptyRgn: HRGN;
@@ -1043,8 +1065,8 @@ var
 {$ENDIF}
 begin
   // a LOT of tweaking here...
-{$IF DEFINED(USE_WINAPI) OR DEFINED(LCLQT) } // GTK2 cannot strech and paint on bitmap canvas, grrr..
-  if CanvasScaled(ACanvas) {$IFDEF USE_WINAPI}and (bsUseThemes in AStates){$ENDIF} then
+{$IF DEFINED(MSWINDOWS) OR DEFINED(LCLQT) } // GTK2 cannot strech and paint on bitmap canvas, grrr..
+  if CanvasScaled(ACanvas) {$IFDEF MSWINDOWS}and (bsUseThemes in AStates){$ENDIF} then
   begin
     BM := TBitmap.Create;
     BM.Width := ARect.Right - ARect.Left;
@@ -1287,12 +1309,15 @@ end;
 function ExtSelectClipRectEx(DC: HDC; ARect: TRect; Mode: Integer; CurRgn, PrevRgn: HRGN): Boolean;
 var
   RectRgn: HRGN;
+//  R1, R2: TRect;
 begin
   RectRgn := CreateRectRgnIndirect(ARect);
   try
+//    GetRgnBox(PrevRgn, R1); // debug line
+//    GetRgnBox(RectRgn, R2); // debug line
     Result := CombineRgn(CurRgn, PrevRgn, RectRgn, Mode) <> NULLREGION;
     if Result then
-      SelectClipRgn(DC, CurRgn);
+      SelectClipRgn(DC, CurRgn)
   finally
     DeleteObject(RectRgn);
   end;
@@ -1337,6 +1362,130 @@ begin
   FillChar(TM, SizeOf(TTextMetric), 0);
   GetTextMetrics(DC, TM);
   Result := TM.tmDescent;
+end;
+
+function GetImageDPI(AGraphic: Tgraphic): TPoint;
+
+  procedure GetDPIFromJPeg(AJPeg: TJPegImage);
+  const
+    cInchesPerCM = (1 / 2.54);
+    cBufferSize = 50;
+  var
+    MS: TMemoryStream;
+    Index: Integer;
+    Buffer: AnsiString;
+    resUnits: Byte;
+    xResolution: Word;
+    yResolution: Word;
+  begin
+    // seek for XDensity and YDensity fields in JPEG header
+    MS := TMemoryStream.Create;
+    try
+      AJPeg.SaveToStream(MS);
+      MS.Seek(0, soFromBeginning);
+      SetLength(Buffer, cBufferSize);
+      MS.Read(Buffer[1], cBufferSize);
+      Index := Pos(AnsiString('JFIF'+#$00), Buffer);
+      if Index > 0 then
+      begin
+        MS.Seek(Index + 6, soFromBeginning);
+        MS.Read(resUnits, 1);
+        MS.Read(xResolution, 2);
+        MS.Read(yResolution, 2);
+        xResolution := Swap(xResolution);
+        yResolution := Swap(yResolution);
+        case resUnits of
+          1: // dots per inch
+          begin
+            Result.X := xResolution;
+            Result.Y := yResolution;
+          end;
+          2: // dots per cm
+          begin
+            Result.X := Round(xResolution / cInchesPerCM);
+            Result.Y := Round(yResolution / cInchesPerCM);
+          end;
+        else
+          Result.X := 96;
+          Result.Y := MulDiv(96, yResolution, xResolution);
+        end;
+      end;
+    finally
+      MS.Free;
+    end;
+  end;
+
+{$IFDEF USE_PNG_SUPPORT}
+  procedure GetDPIFromPng(APng: TKPngImage);
+  const
+    cInchesPerMeter = (100 / 2.54);
+{$IFDEF FPC}
+  type
+    TPngChunkCode = array[0..3] of AnsiChar;
+    TPngChunkHdr = packed record
+      clength: LongWord;
+      ctype: TPngChunkCode;
+    end;
+  var
+    MS: TMemoryStream;
+    CLen, PPUnitX, PPUnitY: Cardinal;
+    CHdr: TPngChunkHdr;
+    CPHYsData: array[0..8] of Byte;
+{$ELSE}
+  var
+    Chunk: TChunk;
+{$ENDIF}
+  begin
+{$IFDEF FPC}
+    MS := TMemoryStream.Create;
+    try
+      APng.SaveToStream(MS);
+      MS.Seek(8, soFromBeginning); // skip PNG header
+      while MS.Position < MS.Size do
+      begin
+        // traverse the PNG chunks until pHYs chunk is found
+        MS.Read(CHdr, SizeOf(CHdr));
+        CLen := SwapEndian(CHdr.clength); // suppose little endian
+        if CHdr.ctype = 'pHYs' then
+        begin
+          MS.Read(CPHYsData, 9); // pHYs chunk is always 9 bytes long
+          if CPHYsData[8] = 1 then // dots per meter
+          begin
+            PPUnitX := SwapEndian(PCardinal(@CPHYsData[0])^); // suppose little endian
+            PPUnitY := SwapEndian(PCardinal(@CPHYsData[4])^); // suppose little endian
+            Result.X := Round(PPUnitX / cInchesPerMeter);
+            Result.Y := Round(PPUnitY / cInchesPerMeter);
+          end;
+          Exit;
+        end else
+          MS.Seek(CLen + SizeOf(LongWord), soFromCurrent);
+      end;
+    finally
+      MS.Free;
+    end;
+{$ELSE}
+    // in Delphi we have the pHYs chunk directly accessible
+    Chunk := APng.Chunks.FindChunk(TChunkpHYs);
+    if Assigned(Chunk) then
+    begin
+      if (TChunkPhys(Chunk).UnitType = utMeter) then
+      begin
+        Result.X := Round(TChunkPhys(Chunk).PPUnitX / cInchesPerMeter);
+        Result.Y := Round(TChunkPhys(Chunk).PPUnitY / cInchesPerMeter);
+      end;
+    end
+{$ENDIF}
+  end;
+{$ENDIF}
+
+begin
+  Result := Point(96, 96); // for unimplemented image types set screen dpi
+  if AGraphic is TJPegImage then
+    GetDPIFromJPeg(TJpegImage(AGraphic))
+{$IFDEF USE_PNG_SUPPORT}
+  else if AGraphic is TKPngImage then
+    GetDPIFromPng(TKPngImage(AGraphic));
+{$ENDIF}
 end;
 
 function GDICheck(Value: Integer): Integer;
@@ -1466,9 +1615,12 @@ begin
 end;
 
 function RgnCreateAndGet(DC: HDC): HRGN;
+//var
+//  R: TRect;
 begin
   Result := CreateEmptyRgn;
   GetClipRgn(DC, Result);
+//  GetRgnBox(Result, R); // debug line
 end;
 
 procedure RgnSelectAndDelete(DC: HDC; Rgn: HRGN);
@@ -1487,15 +1639,18 @@ begin
 end;
 
 procedure SafeStretchDraw(ACanvas: TCanvas; ARect: TRect; AGraphic: TGraphic; ABackColor: TColor);
-{$IFDEF USE_WINAPI}
-var
+{$IFDEF MSWINDOWS}
+{var
   BM: TBitmap;
   W, H, MulX, MulY, DivX, DivY: Integer;
-  R: TRect;
+  R: TRect;}
 {$ENDIF}
 begin
-{$IFDEF USE_WINAPI}
-  if AGraphic.Transparent then
+{$IFDEF MSWINDOWS}
+  // tk: I cannot see problem with StretchBlt anymore, perhaps it was in old Windows XP?
+  // Even if so, following implementation is buggy:
+
+  {if AGraphic.Transparent then
   begin
     // WinAPI StretchBlt function does not read properly from screen buffer
     // so we have to append double buffering
@@ -1514,7 +1669,7 @@ begin
     finally
       BM.Free;
     end;
-  end else
+  end else}
 {$ENDIF}
     ACanvas.StretchDraw(ARect, AGraphic);
 end;
@@ -1533,7 +1688,10 @@ end;
 
 procedure StretchBitmap(DestDC: HDC; DestRect: TRect; SrcDC: HDC; SrcRect: TRect);
 begin
-  {$IFDEF USE_WINAPI}Windows.{$ENDIF}StretchBlt(DestDC,
+{$IFDEF MSWINDOWS}
+  SetStretchBltMode(DestDC, HALFTONE);
+{$ENDIF}
+  {$IFDEF MSWINDOWS}Windows.{$ENDIF}StretchBlt(DestDC,
     DestRect.Left, DestRect.Top, DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top,
     SrcDC, SrcRect.Left, SrcRect.Top, SrcRect.Right - SrcRect.Left, SrcRect.Bottom - SrcRect.Top,
     SRCCOPY);
@@ -1560,13 +1718,15 @@ end;
 
 procedure TranslateRectToDevice(DC: HDC; var ARect: TRect);
 var
-  P: TPoint;
+  WindowOrg, ViewportOrg: TPoint;
 {$IFDEF USE_DC_MAPPING}
  {$IFNDEF LCLQT}
   WindowExt, ViewportExt: TSize;
  {$ENDIF}
 {$ENDIF}
 begin
+  if Boolean(GetWindowOrgEx(DC, {$IFDEF FPC}@{$ENDIF}WindowOrg)) then
+    KFunctions.OffsetRect(ARect, -WindowOrg.X, -WindowOrg.Y);
 {$IFDEF USE_DC_MAPPING}
   {$IFNDEF LCLQT}
   if not (GetMapMode(DC) in [0, MM_TEXT]) and
@@ -1578,12 +1738,10 @@ begin
     ARect.Top := MulDiv(ARect.Top, ViewportExt.cy, WindowExt.cy);
     ARect.Bottom := MulDiv(ARect.Bottom, ViewportExt.cy, WindowExt.cy);
   end;
-  if Boolean(GetViewPortOrgEx(DC, {$IFDEF FPC}@{$ENDIF}P)) then
-    KFunctions.OffsetRect(ARect, P);
+  if Boolean(GetViewPortOrgEx(DC, {$IFDEF FPC}@{$ENDIF}ViewportOrg)) then
+    KFunctions.OffsetRect(ARect, ViewportOrg);
   {$ENDIF}
 {$ENDIF}
-  if Boolean(GetWindowOrgEx(DC, {$IFDEF FPC}@{$ENDIF}P)) then
-    KFunctions.OffsetRect(ARect, -P.X, -P.Y);
 end;
 
 function VerticalShapePosition(AAlignment: TKVAlign; const ABoundary: TRect; const AShapeSize: TPoint): Integer;
@@ -1618,7 +1776,7 @@ begin
   FDirectCopy := False;
   FFileFilter := '*.bma;*.bmp;*.png;*.jpg';
   FHandle := 0;
-{$IFNDEF USE_WINAPI}
+{$IFNDEF MSWINDOWS}
   FImage := TLazIntfImage.Create(0, 0);
 {$ENDIF}
   FHeight := 0;
@@ -1655,7 +1813,7 @@ var
 begin
   LockUpdate;
   SetSize(0, 0);
-{$IFNDEF USE_WINAPI}
+{$IFNDEF MSWINDOWS}
   FImage.Free;
 {$ENDIF}
   DC := FCanvas.Handle;
@@ -1673,17 +1831,12 @@ end;
 procedure TKAlphaBitmap.AlphaFill(Alpha: Byte; IfEmpty: Boolean);
 var
   I: Integer;
-  HasAlpha: Boolean;
+  LocHasAlpha: Boolean;
 begin
-  HasAlpha := False;
+  LocHasAlpha := False;
   if IfEmpty then
-    for I := 0 to FWidth * FHeight - 1 do
-      if FPixels[I].A <> 0 then
-      begin
-        HasAlpha := True;
-        Break;
-      end;
-  if not HasAlpha then
+    LocHasAlpha := HasAlpha;
+  if not LocHasAlpha then
   begin
     LockUpdate;
     try
@@ -1745,7 +1898,7 @@ begin
       VSum := Alpha;
     end;
     CS := ColorToColorRec(BlendColor);
-  {$IFNDEF USE_WINAPI}
+  {$IFNDEF MSWINDOWS}
     for I := 0 to FHeight - 1 do
   {$ELSE}
     for I := FHeight - 1 downto 0 do
@@ -1870,7 +2023,7 @@ begin
     LockUpdate;
     try
       SwapBR(Color);
-    {$IFDEF USE_WINAPI}
+    {$IFDEF MSWINDOWS}
       Index := (FHeight - Y - 1) * FWidth + X;
     {$ELSE}
       Index := Y * FWidth + X;
@@ -1965,7 +2118,7 @@ begin
     begin
       FCanvas.Brush := ACanvas.Brush;
       DrawFilledRectangle(FCanvas, Rect(0, 0, FWidth, FHeight),
-        {$IFDEF USE_WINAPI}GetBkColor(ACanvas.Handle){$ELSE}clWindow{$ENDIF});
+        {$IFDEF MSWINDOWS}GetBkColor(ACanvas.Handle){$ELSE}clWindow{$ENDIF});
     end;
     UpdatePixels;
   end;
@@ -2017,7 +2170,7 @@ function TKAlphaBitmap.GetPixel(X, Y: Integer): TKColorRec;
 begin
   if (X >= 0) and (X < FWidth) and (Y >= 0) and (Y < FHeight) then
   begin
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     Result := FPixels[(FHeight - Y - 1) * FWidth + X];
   {$ELSE}
     Result := FPixels[Y * FWidth + X];
@@ -2041,6 +2194,19 @@ end;
 function TKAlphaBitmap.GetHandle: HBITMAP;
 begin
   Result := FHandle;
+end;
+
+function TKAlphaBitmap.GetHasAlpha: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 0 to FWidth * FHeight - 1 do
+    if FPixels[I].A <> 0 then
+    begin
+      Result := True;
+      Break;
+    end;
 end;
 
 function TKAlphaBitmap.GetWidth: Integer;
@@ -2112,7 +2278,7 @@ begin
   LockUpdate;
   try
     SetSize(Image.Width, Image.Height);
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     Canvas.Draw(0, 0, Image);
   {$ELSE}
     if Image is TRasterImage then
@@ -2142,7 +2308,7 @@ begin
         Stream.Read(FPixels^, BI.biSizeImage);
         // if bitmap has no alpha channel, create full opacity
         AlphaFill($FF, True);
-      {$IFnDEF USE_WINAPI}
+      {$IFnDEF MSWINDOWS}
         if FAutoMirror then
           MirrorVert;
       {$ENDIF}
@@ -2226,7 +2392,7 @@ var
   BF: TBitmapFileHeader;
   BI: TBitmapInfoHeader;
 begin
-{$IFnDEF USE_WINAPI}
+{$IFnDEF MSWINDOWS}
   if FAutoMirror then
     MirrorVert;
 {$ENDIF}
@@ -2246,7 +2412,7 @@ begin
   BI.biSizeImage := Size;
   Stream.Write(BI, SizeOf(TBitmapInfoHeader));
   Stream.Write(FPixels^, Size);
-{$IFnDEF USE_WINAPI}
+{$IFnDEF MSWINDOWS}
   if FAutoMirror then
     MirrorVert;
 {$ENDIF}
@@ -2264,7 +2430,7 @@ begin
     LockUpdate;
     try
       SwapBR(Value);
-    {$IFDEF USE_WINAPI}
+    {$IFDEF MSWINDOWS}
       FPixels[(FHeight - Y - 1) * FWidth + X] := Value;
     {$ELSE}
       FPixels[Y * FWidth + X] := Value;
@@ -2277,7 +2443,7 @@ end;
 
 procedure TKAlphaBitmap.SetSize(AWidth, AHeight: Integer);
 var
-{$IFNDEF USE_WINAPI}
+{$IFNDEF MSWINDOWS}
   ImgFormatDescription: TRawImageDescription;
 {$ELSE}
   BI: TBitmapInfoHeader;
@@ -2296,18 +2462,18 @@ begin
         SelectObject(FCanvas.Handle, FOldBitmap);
         DeleteObject(FHandle);
         FHandle := 0;
-      {$IFNDEF USE_WINAPI}
+      {$IFNDEF MSWINDOWS}
         DeleteObject(FMaskHandle);
         FMaskHandle := 0;
       {$ENDIF}
       end;
-    {$IFNDEF USE_WINAPI}
+    {$IFNDEF MSWINDOWS}
       FImage.SetSize(0, 0);
     {$ENDIF}
       FPixels := nil;
       if (FWidth <> 0) and (FHeight <> 0) then
       begin
-      {$IFNDEF USE_WINAPI}
+      {$IFNDEF MSWINDOWS}
         ImgFormatDescription.Init_BPP32_B8G8R8A8_BIO_TTB(FWidth,FHeight);
         FImage.DataDescription := ImgFormatDescription;
         FPixelsChanged := True;
@@ -2352,7 +2518,7 @@ end;
 
 procedure TKAlphaBitmap.UpdateHandle;
 begin
-{$IFNDEF USE_WINAPI}
+{$IFNDEF MSWINDOWS}
   if FPixelsChanged then
   begin
     PixelsChanged := False;
@@ -2370,7 +2536,7 @@ end;
 
 procedure TKAlphaBitmap.UpdatePixels;
 begin
-{$IFNDEF USE_WINAPI}
+{$IFNDEF MSWINDOWS}
   FImage.LoadFromDevice(FCanvas.Handle);
   FPixelsChanged := True;
   UpdateHandle;
@@ -2379,7 +2545,7 @@ end;
 
 { TKMetafile }
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 
 constructor TKMetafile.Create;
 begin
@@ -3156,7 +3322,7 @@ end;
 
 { TKDragWindow }
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 const
   cLayeredWndClass = 'KControls drag window';
 
@@ -3229,7 +3395,7 @@ end;
 {$ENDIF}
 
 constructor TKDragWindow.Create;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 var
   Cls: Windows.TWndClass;
   ExStyle: Cardinal;
@@ -3239,7 +3405,7 @@ begin
   FActive := False;
   FBitmap := TKAlphaBitmap.Create;
   FInitialPos := CreateEmptyPoint;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   FUpdateLayeredWindow := GetProcAddress(GetModuleHandle('user32.dll'), 'UpdateLayeredWindow');
   FLayered := Assigned(FUpdateLayeredWindow);
   Cls.style := CS_SAVEBITS;
@@ -3270,7 +3436,7 @@ destructor TKDragWindow.Destroy;
 begin
   inherited;
   Hide;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   DestroyWindow(FWindow);
   Windows.UnregisterClass(cLayeredWndClass, HInstance);
 {$ELSE}
@@ -3283,7 +3449,7 @@ procedure TKDragWindow.Hide;
 begin
   if FActive then
   begin
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     ShowWindow(FWindow, SW_HIDE);
   {$ELSE}
     FDragForm.Hide;
@@ -3328,7 +3494,7 @@ begin
       TKCustomControl(FControl).Repaint;
     end else
       Org := ARect.TopLeft;
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     if FLayered then with FBlend do
     begin
       BlendOp := AC_SRC_OVER;
@@ -3352,7 +3518,7 @@ var
   DX, DY: Integer;
   BlendColor: TColor;
   ChangedPos: Boolean;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   ScreenDC: HDC;
   CanvasOrigin: TPoint;
 {$ENDIF}
@@ -3387,7 +3553,7 @@ begin
     end;
     if ChangedPos or AShowAlways then
     begin
-    {$IFDEF USE_WINAPI}
+    {$IFDEF MSWINDOWS}
       if ARect <> nil then
         R := ARect^
       else

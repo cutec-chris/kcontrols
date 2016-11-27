@@ -134,12 +134,12 @@ implementation
 
 uses
   KRes
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   , ActiveX, ShlObj, Windows, Messages
 {$ENDIF}
   ;
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 const
   {Common Controls version 5.O extensions}
   BIF_BROWSEINCLUDEURLS = $0080;
@@ -257,7 +257,7 @@ end;
 
 { TKBrowseFolderDialog }
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 function BFCallBack(Wnd: HWND; uMsg: UINT; lPar, lpData: LPARAM): Integer stdcall;
 var
   Allocator: IMalloc;
@@ -304,7 +304,7 @@ begin
 end;
 
 function TKBrowseFolderDialog.Execute: Boolean;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 var
   BI: TBrowseInfo;
   Buf: PChar;

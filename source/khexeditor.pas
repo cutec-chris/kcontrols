@@ -41,7 +41,7 @@ uses
   Windows, Messages,
 {$ENDIF}
   SysUtils, Classes, Graphics, Controls,
-  ExtCtrls, StdCtrls, Forms, KFunctions, KControls, KEditCommon;
+  ExtCtrls, StdCtrls, Forms, KFunctions, KGraphics, KControls, KEditCommon;
 
 type
   { Declares possible values for the @link(TKCustomHexEditor.AddressMode) property }
@@ -86,8 +86,8 @@ type
     DigitsOut,
     Text,
     TextIn,
-    TotalHorz,
-    TotalVert: Integer;
+    TotalHorz: Integer;
+    TotalVert: Int64;
   end;
 
   { Declared for backward compatibility only. }
@@ -145,7 +145,7 @@ type
     Canvas: TCanvas;
     PaintRect: TRect;
     TopLine,
-    BottomLine,
+    BottomLine: Int64;
     LeftChar,
     CharWidth,
     CharHeight,
@@ -157,17 +157,7 @@ type
     CaretShown: Boolean;
   end;
 
-  { @abstract(Declares the selection structure)
-    <UL>
-    <LH>Members:</LH>
-    <LI><I>Index</I> - byte index</LI>
-    <LI><I>Digit</I> - digit index</LI>
-    </UL>
-  }
-  TKHexEditorSelection = record
-    Index: Integer;
-    Digit: Integer;
-  end;
+  TKHexEditorSelection = TKHexDigitPosition;
 
   { @abstract(Declares the structure for the @link(TKCustomHexEditor.SelText) property)
     <UL>
@@ -391,6 +381,9 @@ const
 
   { Default value for the @link(TKHexEditor.Width) property }
   cWidth = 400;
+
+  { Default max. chunk size for file IO operations }
+  cIOChunkSize = $2000000;
 
 type
   TKCustomHexEditor = class;
@@ -617,9 +610,9 @@ type
     FScrollTimer: TTimer;
     FSelEnd: TKHexEditorSelection;
     FSelStart: TKHexEditorSelection;
-    FSize: Integer;
+    FSize: Int64;
     FStates: TKHexEditorStates;
-    FTopLine: Integer;
+    FTopLine: Int64;
     FTotalCharSpacing: Integer;
     FUndoList: TKHexEditorChangeList;
     FOnChange: TNotifyEvent;
@@ -632,8 +625,8 @@ type
     function GetFirstVisibleIndex: Integer;
     function GetInsertMode: Boolean;
     function GetLastVisibleIndex: Integer;
-    function GetLineCount: Integer;
-    function GetLines(Index: Integer): TDataSize;
+    function GetLineCount: Int64;
+    function GetLines(Index: Int64): TDataSize;
     function GetModified: Boolean;
     function GetReadOnly: Boolean;
     function GetSelLength: TKHexEditorSelection;
@@ -652,14 +645,14 @@ type
     procedure SetCharSpacing(Value: Integer);
     procedure SetColors(Value: TKHexEditorColors);
     procedure SetCommandKey(Index: TKEditCommand; Value: TKEditKey);
-    procedure SetData(Value: TDataSize);
+    procedure SetData(const Value: TDataSize);
     procedure SetDigitGrouping(Value: Integer);
     procedure SetDisabledDrawStyle(Value: TKEditDisabledDrawStyle);
     procedure SetDrawStyles(const Value: TKHexEditorDrawStyles);
     procedure SetEditArea(Value: TKHexEditorArea);
     procedure SetLeftChar(Value: Integer);
     procedure SetLineHeightPercent(Value: Integer);
-    procedure SetLines(Index: Integer; const Value: TDataSize);
+    procedure SetLines(Index: Int64; const Value: TDataSize);
     procedure SetLineSize(Value: Integer);
     procedure SetModified(Value: Boolean);
     procedure SetOptions(const Value: TKEditOptions);
@@ -669,7 +662,7 @@ type
     procedure SetSelEnd(Value: TKHexEditorSelection);
     procedure SetSelLength(Value: TKHexEditorSelection);
     procedure SetSelStart(Value: TKHexEditorSelection);
-    procedure SetTopLine(Value: Integer);
+    procedure SetTopLine(Value: Int64);
     procedure SetUndoLimit(Value: Integer);
     procedure CMEnabledChanged(var Msg: TLMessage); message CM_ENABLEDCHANGED;
     procedure CMSysColorChange(var Msg: TLMessage); message CM_SYSCOLORCHANGE;
@@ -727,7 +720,7 @@ type
     { Clears a the digit fields both in SelStart and SelEnd. Doesn't perform any succesive adjustments.}
     procedure ClearDigitSelection;
     { Clears a string of the Size length at position At. Doesn't perform any succesive adjustments. }
-    procedure ClearString(At, Size: Integer);
+    procedure ClearString(At, Size: Int64);
     { Overriden method - defines additional styles for the hex editor window (scrollbars etc.)}
     procedure CreateParams(var Params: TCreateParams); override;
     { Overriden method - adjusts file drag&drop functionality }
@@ -758,15 +751,21 @@ type
       <LI><I>At</I> - position where the character should be inserted.</LI>
       <LI><I>Value</I> - character (data byte)</LI>
       </UL> }
-    procedure InsertChar(At: Integer; Value: Byte);
+    procedure InsertChar(At: Int64; Value: Byte);
     { Inserts a string at specified position. Doesn't perform any succesive adjustments.
       <UL>
       <LH>Parameters:</LH>
       <LI><I>At</I> - position where the string should be inserted.</LI>
       <LI><I>Value</I> - data byte string</LI>
-      <LI><I>Size</I> - length of the data byte string</LI>
       </UL> }
-    procedure InsertString(At: Integer; const Value: AnsiString; Size: Integer);
+    procedure InsertString(At: Int64; const Value: TDataSize); overload;
+    { Inserts a string at specified position. Doesn't perform any succesive adjustments.
+      <UL>
+      <LH>Parameters:</LH>
+      <LI><I>At</I> - position where the string should be inserted.</LI>
+      <LI><I>Value</I> - data byte string</LI>
+      </UL> }
+    procedure InsertString(At: Int64; const Value: AnsiString); overload;
     { Returns True if the control has a selection. }
     function InternalGetSelAvail: Boolean; override;
     { Moves the caret one position left. Doesn't perform any succesive adjustments.}
@@ -829,7 +828,7 @@ type
       (@link(TKCustomHexEditor.GetModifiedClientRect)).</LI>
       <LI><I>AlwaysScroll</I> - set to True to disable new line overscrolling</LI>
       </UL> }
-    procedure ScrollTo(Point: TPoint; Timed, AlwaysScroll: Boolean); virtual;
+    procedure ScrollTo(Point: TKPoint64; Timed, AlwaysScroll: Boolean); virtual;
     { Updates mouse cursor according to the state determined from current mouse
       position. Returns True if cursor has been changed. }
     function SetMouseCursor(X, Y: Integer): Boolean; override;
@@ -858,7 +857,7 @@ type
       to modified client rectangle (@link(TKCustomHexEditor.GetModifiedClientRect))
       first</LI>
       </UL> }
-    procedure UpdateSelEnd(Point: TPoint; ClipToClient: Boolean); virtual;
+    procedure UpdateSelEnd(Point: TKPoint64; ClipToClient: Boolean); virtual;
     { Updates the control size. }
     procedure UpdateSize; override;
     { Data buffer - made accessible for descendant classes }
@@ -866,7 +865,7 @@ type
     { Redo list manager - made accessible for descendant classes }
     property RedoList: TKHexEditorChangeList read FRedoList;
     { Data buffer size - made accessible for descendant classes }
-    property Size: Integer read FSize write FSize;
+    property Size: Int64 read FSize write FSize;
     { States of this class - made accessible for descendant classes }
     property States: TKHexEditorStates read FStates write FStates;
     { Undo list manager - made accessible for descendant classes }
@@ -877,10 +876,10 @@ type
     constructor Create(AOwner: TComponent); override;
     { Destroy instance, undo/redo list managers, dispose buffer... }
     destructor Destroy; override;
-    { Appends data at current position. Use TKHexEditor.Data.Size for At parameter
+    { Appends data at current position. Use -1 for At parameter
       to append at the end of the buffer. }
-    procedure Append(At: Integer; Data: TDataSize); overload; virtual;
-    { Appends data at current position. Use TKHexEditor.Data.Size for At parameter
+    procedure Append(At: Integer; const Data: TDataSize); overload; virtual;
+    { Appends data at current position. Use -1 for At parameter
       to append at the end of the buffer. }
     procedure Append(At: Integer; const Data: AnsiString); overload; virtual;
     { Takes property values from another TKCustomHexEditor class }
@@ -932,7 +931,7 @@ type
       <LI><I>Extent</I> - specify @link(TKHexEditorAreaDimensions).TotalVert
       here, otherwise the function calculates it itself</LI>
       </UL> }
-    function GetMaxTopLine(Extent: Integer = 0): Integer; virtual;
+    function GetMaxTopLine(Extent: Int64 = 0): Int64; virtual;
     { Returns "real" selection end - with always higher index value than selection
       start value }
     function GetRealSelEnd: TKHexEditorSelection;
@@ -951,7 +950,7 @@ type
       <LI><I>ALeftChar</I> - first left visible character</LI>
       <LI><I>ATopLine</I> - first top visible line</LI>
       </UL> }
-    procedure PaintToCanvasEx(ACanvas: TCanvas; ARect: TRect; ALeftChar, ATopLine: Integer);
+    procedure PaintToCanvasEx(ACanvas: TCanvas; ARect: TRect; ALeftChar: Integer; ATopLine: Int64);
     { Converts window coordinates into a selection
       <UL>
       <LH>Parameters:</LH>
@@ -961,7 +960,7 @@ type
       <LI><I>Area</I> output parameter if OutOfArea = False, otherwise
       input parameter</LI>
       </UL> }
-    function PointToSel(P: TPoint; OutOfArea: Boolean; var Area: TKHexEditorArea): TKHexEditorSelection; virtual;
+    function PointToSel(P: TKPoint64; OutOfArea: Boolean; var Area: TKHexEditorArea): TKHexEditorSelection; virtual;
     { Saves data into a file }
     procedure SaveToFile(const FileName: TFileName);
     { Saves data into a stream - stream position remains untouched }
@@ -981,7 +980,7 @@ type
       <LI><I>Value</I> - selection to convert</LI>
       <LI><I>Area</I> - the same selection delivers another coordinates for each area</LI>
       </UL> }
-    function SelToPoint(Value: TKHexEditorSelection; Area: TKHexEditorArea): TPoint; virtual;
+    function SelToPoint(Value: TKHexEditorSelection; Area: TKHexEditorArea): TKPoint64; virtual;
     { Specifies character mapping. The main purpose of this is to avoid non-printable
       characters in the text area and in AsText copies. Avoid non-printable characters
       when delivering a new character mapping. }
@@ -1048,14 +1047,14 @@ type
     { Specifies the horizontal scroll position }
     property LeftChar: Integer read FLeftChar write SetLeftChar;
     { Determines the number of lines }
-    property LineCount: Integer read GetLineCount;
+    property LineCount: Int64 read GetLineCount;
     { Specifies the line height. 100% is the current font height }
     property LineHeightPercent: Integer read FLineHeightPercent write SetLineHeightPercent default cLineHeightPercentDef;
     { Allows to modify/add data lines. If greater than LineSize, the Size member
       of the supplied TDataSize structure will be always trimmed to LineSize.
       If Index points to last incomplete line or even higher, last line will be
       extended/completed, i.e new data will be added to the buffer }
-    property Lines[Index: Integer]: TDataSize read GetLines write SetLines;
+    property Lines[Index: Int64]: TDataSize read GetLines write SetLines;
     { Specifies the size (length) of a single line }
     property LineSize: Integer read FLineSize write SetLineSize default cLineSizeDef;
     { Returns True if the buffer was modified - eoUndoAfterSave taken into
@@ -1080,7 +1079,7 @@ type
     { Returns selected text in many different formats }
     property SelText: TKHexEditorSelText read GetSelText;
     { Specifies the vertical scroll position }
-    property TopLine: Integer read FTopLine write SetTopLine;
+    property TopLine: Int64 read FTopLine write SetTopLine;
     { Specifies the maximum number of undo items. Please note this value
       affects the undo item limit, not undo group limit. }
     property UndoLimit: Integer read GetUndoLimit write SetUndoLimit default cUndoLimitDef;
@@ -1242,91 +1241,10 @@ type
     property OnUnDock;
   end;
 
-{ Creates a selection structure from given Index and Digit parameters }
-function MakeSelection(Index, Digit: Integer): TKHexEditorSelection;
-
-{ Converts a hexadecimal digit character ('0'..'F') to binary value }
-function DigitToBin(Value: AnsiChar): Integer;
-
-{ Examines/converts hexadecimal digit string to binary value string. Returns
-  True if the digit string is valid.
-  <UL>
-  <LH>Parameters:</LH>
-  <LI><I>S</I> - hexadecimal digit string (e.g. 'AF01 DC05 3'). White spaces will
-  be ignored. When Convert is True, the converted binary value string will be returned
-  via this parameter (in this exammple '#A#F#0#1#D#C#0#5#3').</LI>
-  <LI><I>Convert</I> - the digit string will be converted if True, otherwise it will
-  be examined only.</LI>
-  </UL> }
-function DigitsToBinStr(var S: AnsiString; Convert: Boolean = True): Boolean;
-
-{ Converts a binary value string into binary data. If the binary value string
-  is not divisible by 2, it will be right padded with zero. Example:
-  '#A#F#0#1#D#C#0#5#3' is converted into '#AF#01#DC#05#30'. }
-function BinStrToBinary(const S: AnsiString): AnsiString;
-
-{ Converts binary value (0..15) to hexadecimal digit character ('0'..'F') }
-function BinToDigit(Value: Byte): AnsiChar;
-
-{ Converts binary data into hexadecimal digit string.
-  <UL>
-  <LH>Parameters:</LH>
-  <LI><I>Buffer</I> - binary data - intended for @link(TKCustomHexEditor.Buffer)</LI>
-  <LI><I>SelStart, SelEnd</I> - specifies which part of the buffer is about to be
-  converted. SelStart.Index must be lower or equal to SelEnd.Index - intended for
-  @link(TKCustomHexEditor.GetRealSelStart) and @link(TKCustomHexEditor.GetRealSelEnd).</LI>
-  </UL>
-  Example: '#AF#01#DC#05#30' is converted into 'AF01DC0530'.
-  If AInsertSpaces is True then resulting string is 'AF 01 DC 05 30'. }
-function BinaryToDigits(Buffer: PBytes; SelStart, SelEnd: TKHexEditorSelection;
-  AInsertSpaces: Boolean = False): AnsiString; overload;
-
-{ Convertes binary data into hexadecimal digit string. Entire data used. }
-function BinaryToDigits(Buffer: PBytes; ASize: Integer;
-  AInsertSpaces: Boolean = False): AnsiString; overload;
-
-{ Convertes binary data into hexadecimal digit string. Uses AnsiString as source data. }
-function BinaryToDigits(const Source: AnsiString;
-  AInsertSpaces: Boolean = False): AnsiString; overload;
-
-{ Converts a binary value string into hexadecimal digit string. If the binary value string
-  is not divisible by 2, it will be trimmed. Example:
-  '#A#F#0#1#D#C#0#5#3' is converted into 'AF01DC05'.
-  If AInsertSpaces is True then resulting string is 'AF 01 DC 05'. }
-function BinStrToDigits(const Source: AnsiString;
-  AInsertSpaces: Boolean = False): AnsiString;
-
-{ Converts binary data into text using given character mapping.
-  <UL>
-  <LH>Parameters:</LH>
-  <LI><I>Buffer</I> - binary data - intended for @link(TKCustomHexEditor.Buffer)</LI>
-  <LI><I>SelStart, SelEnd</I> - specifies which part of the buffer is about to be
-  converted. SelStart must be lower or equal to SelEnd. These parameters are integers
-  since no digit selections are necessary.</LI>
-  <LI><I>CharMapping</I> - required character mapping scheme</LI>
-  </UL> }
-function BinaryToText(Buffer: PBytes; SelStart, SelEnd: Integer;
-  CharMapping: PKEditCharMapping): AnsiString;
-
-{ Insert spaces into hexadecimal digit string.
-  Example: 'AF01DC05' becomes 'AF 01 DC 05'. }
-function InsertSpacesToDigits(const Source: AnsiString): AnsiString;
-
-{ Replaces a hexadecimal digit in the given binary value. Returns the original
-  value with a replaced digit.
-  <UL>
-  <LH>Parameters:</LH>
-  <LI><I>Value</I> - original binary value</LI>
-  <LI><I>Digit</I> - digit value (0..15)</LI>
-  <LI><I>Pos</I> - digit position (order)</LI>
-  </UL>
-  Example: Value = $A18D, Digit = $C, Pos = 3: Result = $AC8D }
-function ReplaceDigit(Value, Digit, Pos: Integer): Integer;
-
-function ReplaceNonprintableCharacters(const AText: AnsiString; AMapping: TKEditCharMapping = nil): AnsiString;
-
 { Declared for backward compatibility only. Use @link(TKCustomHexEditor.Colors) and its properties/methods. }
 function GetColorSpec(Index: TKHexEditorColorIndex): TKHexEditorColorSpec;
+
+function MakeSelection(Index: Int64; Digit: Integer): TKHexEditorSelection;
 
 implementation
 
@@ -1335,228 +1253,11 @@ uses
   Themes,
 {$ENDIF}
   Math,
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   ShellApi,
 {$ENDIF}
   ClipBrd, Printers,
-  Types, KGraphics, KRes;
-
-const
-  cFmtText = '%.2x';
-  cBase = 16;
-  cDigitCount = 2;
-
-function MakeSelection(Index, Digit: Integer): TKHexEditorSelection;
-begin
-  Result.Index := Index;
-  Result.Digit := Digit;
-end;
-
-function DigitToBin(Value: AnsiChar): Integer;
-begin
-  if ((Value >= 'a') and (Value <= 'f')) then Result := Ord(Value) - Ord('a') + 10
-  else if ((Value >= 'A') and (Value <= 'F')) then Result := Ord(Value) - Ord('A') + 10
-  else if ((Value >= '0') and (Value <= '9')) then Result := Ord(Value) - Ord('0')
-  else Result := -1;
-end;
-
-function DigitsToBinStr(var S: AnsiString; Convert: Boolean = True): Boolean;
-var
-  I, J, K: Integer;
-  T: AnsiString;
-begin
-  // check and convert text characters to hex values 0..15
-  Result := True;
-  if Convert then
-    SetLength(T, Length(S));
-  J := 0;
-  for I := 1 to Length(S) do if not CharInSetEx(S[I], [cTAB, cSPACE]) then
-  begin
-    K := DigitToBin(S[I]);
-    if K >= 0 then
-    begin
-      if Convert then
-      begin
-        Inc(J);
-        T[J] := AnsiChar(K)
-      end;
-    end else
-    begin
-      Result := False;
-      Break;
-    end;
-  end;
-  if Result and Convert then
-  begin
-    SetLength(T, J);
-    S := T;
-  end;
-end;
-
-function BinStrToBinary(const S: AnsiString): AnsiString;
-var
-  I, J, L: Integer;
-  B1, B2: Byte;
-begin
-  L := Length(S);
-  Result := '';
-  if L > 0 then
-  begin
-    SetLength(Result, DivUp(L, 2));
-    if L = 1 then
-      Result := S
-    else
-    begin
-      J := 1;
-      for I := 1 to Length(Result) do
-      begin
-        B1 := Byte(S[J]); Inc(J);
-        if J <= L then
-        begin
-          B2 := Byte(S[J]); Inc(J);
-        end else
-          B2 := 0;
-        Result[I] := AnsiChar(B1 shl 4 + B2);
-      end;
-    end;
-  end;
-end;
-
-function BinToDigit(Value: Byte): AnsiChar;
-begin
-  if Value >= $10 then
-    Result := '0'
-  else if Value >= $A then
-    Result := AnsiChar(Ord('A') + Value - 10)
-  else
-    Result := AnsiChar(Ord('0') + Value)
-end;
-
-function BinaryToDigits(Buffer: PBytes; SelStart, SelEnd: TKHexEditorSelection;
-  AInsertSpaces: Boolean): AnsiString;
-var
-  I, J, SpaceCount: Integer;
-begin
-  if AInsertSpaces then
-    SpaceCount := SelEnd.Index - SelStart.Index
-  else
-    SpaceCount := 0;
-  SetLength(Result, (SelEnd.Index - SelStart.Index) * cDigitCount - SelStart.Digit + SelEnd.Digit + SpaceCount);
-  J := 1;
-  for I := SelStart.Index to SelEnd.Index do
-  begin
-    if ((I > SelStart.Index) or (SelStart.Digit < 1)) and ((I < SelEnd.Index) or (SelEnd.Digit > 0)) then
-    begin
-      Result[J] := BinToDigit((Buffer[I] shr 4) and $F);
-      Inc(J);
-    end;
-    if ((I > SelStart.Index) or (SelStart.Digit < 2)) and ((I < SelEnd.Index) or (SelEnd.Digit > 1)) then
-    begin
-      Result[J] := BinToDigit(Buffer[I] and $F);
-      Inc(J);
-    end;
-    if AInsertSpaces and (I < SelEnd.Index) then
-    begin
-      Result[J] := ' ';
-      Inc(J);
-    end;
-  end;
-end;
-
-function BinaryToDigits(Buffer: PBytes; ASize: Integer; AInsertSpaces: Boolean = False): AnsiString;
-begin
-  Result := BinaryToDigits(Buffer, MakeSelection(0, 0), MakeSelection(ASize - 1, cDigitCount), AInsertSpaces);
-end;
-
-function BinaryToDigits(const Source: AnsiString; AInsertSpaces: Boolean): AnsiString;
-begin
-  Result := BinaryToDigits(PBytes(@Source[1]), MakeSelection(0, 0), MakeSelection(Length(Source) - 1, cDigitCount), AInsertSpaces);
-end;
-
-function BinStrToDigits(const Source: AnsiString; AInsertSpaces: Boolean): AnsiString;
-var
-  I, J, CharLen, SpaceCount: Integer;
-begin
-  CharLen := Length(Source) div 2;
-  if AInsertSpaces then
-    SpaceCount := CharLen - 1
-  else
-    SpaceCount := 0;
-  SetLength(Result, CharLen * 2 + SpaceCount);
-  J := 1;
-  for I := 1 to CharLen do
-  begin
-    Result[J] := BinToDigit(Ord(Source[I * 2 - 1]));
-    Inc(J);
-    Result[J] := BinToDigit(Ord(Source[I * 2]));
-    Inc(J);
-    if AInsertSpaces and (I < CharLen) then
-    begin
-      Result[J] := ' ';
-      Inc(J);
-    end;
-  end;
-end;
-
-function BinaryToText(Buffer: PBytes; SelStart, SelEnd: Integer;
-  CharMapping: PKEditCharMapping): AnsiString;
-var
-  I: Integer;
-begin
-  if SelEnd > SelStart then
-  begin
-    SetLength(Result, SelEnd - SelStart);
-    System.Move(Buffer[SelStart], Result[1], SelEnd - SelStart);
-    if CharMapping <> nil then
-      for I := 1 to Length(Result) do
-        Result[I] := CharMapping^[Byte(Result[I])];
-  end else
-    Result := '';
-end;
-
-function InsertSpacesToDigits(const Source: AnsiString): AnsiString;
-var
-  I, J, CharLen, SpaceCount: Integer;
-begin
-  CharLen := Length(Source) div 2;
-  SpaceCount := CharLen - 1;
-  SetLength(Result, CharLen * 2 + SpaceCount);
-  J := 1;
-  for I := 1 to CharLen do
-  begin
-    Result[J] := Source[I * 2 - 1];
-    Inc(J);
-    Result[J] := Source[I * 2];
-    Inc(J);
-    if I < CharLen then
-    begin
-      Result[J] := ' ';
-      Inc(J);
-    end;
-  end;
-end;
-
-function ReplaceDigit(Value, Digit, Pos: Integer): Integer;
-var
-  I, Mask, O: Integer;
-begin
-  O := 1;
-  for I := Pos to cDigitCount - 2 do
-    O := O * cBase;
-  Mask := cBase - 1;
-  Result := (((Value div O) and not Mask) + (Digit and Mask)) * O + Value mod O;
-end;
-
-function ReplaceNonprintableCharacters(const AText: AnsiString; AMapping: TKEditCharMapping = nil): AnsiString;
-var
-  I: Integer;
-begin
-  if AMapping = nil then
-    AMapping := DefaultCharMapping;
-  SetLength(Result, Length(AText));
-  for I := 1 to Length(AText) do
-    Result[I] := AMapping[Ord(AText[I])];
-end;
+  Types, KRes;
 
 function OppositeReason(ItemReason: TKHexEditorChangeReason): TKHexEditorChangeReason;
 begin
@@ -1583,6 +1284,11 @@ begin
   finally
     Colors.Free;
   end;
+end;
+
+function MakeSelection(Index: Int64; Digit: Integer): TKHexEditorSelection;
+begin
+  Result := MakeHexDigitPosition(Index, Digit);
 end;
 
 { TKHexEditorColors }
@@ -1909,20 +1615,20 @@ begin
     FUndoList.AddChange(ItemReason, S, Inserted);
 end;
 
-procedure TKCustomHexEditor.Append(At: Integer; Data: TDataSize);
-var
-  S: AnsiString;
+procedure TKCustomHexEditor.Append(At: Integer; const Data: TDataSize);
 begin
   if (Data.Size > 0) and (Data.Data <> nil) then
   begin
-    SetString(S, PAnsiChar(Data.Data), Data.Size);
-    InsertString(At, S, Data.Size);
+    if At < 0 then
+      At := FSize;
+    InsertString(At, Data);
   end;
 end;
 
 procedure TKCustomHexEditor.Append(At: Integer; const Data: AnsiString);
 begin
-  InsertString(At, Data, Length(Data));
+  if Length(Data) > 0 then
+    Append(At, MakeDataSize(@Data[1], Length(Data)));
 end;
 
 procedure TKCustomHexEditor.Assign(Source: TPersistent);
@@ -2003,7 +1709,7 @@ end;
 function TKCustomHexEditor.CanScroll(Command: TKEditCommand): Boolean;
 var
   XMax, YMax: Integer;
-  P: TPoint;
+  P: TKPoint64;
   AD: TKHExEditorAreaDimensions;
 begin
   AD := GetAreaDimensions;
@@ -2029,7 +1735,7 @@ end;
 
 function TKCustomHexEditor.CaretInView: Boolean;
 begin
-  Result := PtInRect(GetModifiedClientRect, SelToPoint(FSelEnd, FEditArea));
+  Result := Pt64InRect(GetModifiedClientRect, SelToPoint(FSelEnd, FEditArea));
 end;
 
 procedure TKCustomHexEditor.Clear;
@@ -2054,7 +1760,7 @@ begin
   FSelEnd.Digit := 0;
 end;
 
-procedure TKCustomHexEditor.ClearString(At, Size: Integer);
+procedure TKCustomHexEditor.ClearString(At, Size: Int64);
 begin
   if (FBuffer <> nil) and (Size > 0) and (At >= 0) and (At + Size <= FSize) then
   begin
@@ -2151,7 +1857,7 @@ end;
 procedure TKCustomHexEditor.CreateWnd;
 begin
   inherited;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   if (eoDropFiles in FOptions) and not (csDesigning in ComponentState) then
     DragAcceptFiles(Handle, TRUE);
 {$ENDIF}
@@ -2159,7 +1865,7 @@ end;
 
 procedure TKCustomHexEditor.DestroyWnd;
 begin
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   if (eoDropFiles in FOptions) and not (csDesigning in ComponentState) then
     DragAcceptFiles(Handle, FALSE);
 {$ENDIF}
@@ -2217,11 +1923,13 @@ end;
 function TKCustomHexEditor.ExecuteCommand(Command: TKEditCommand;
   Data: Pointer): Boolean;
 var
-  I, J, K, M, N, O: Integer;
+  I, J, K, O, N, SLen: Integer;
+  Count, Index, Size, StartIndex, EndIndex: Int64;
+  B: Byte;
   CanInsert, MoreBytes, Found, MatchCase: Boolean;
   C1, C2, C3: AnsiChar;
   S, S_FirstChar, S_LastChar, T: AnsiString;
-  P: TPoint;
+  P: TKPoint64;
   Area: TKHexEditorArea;
   L, OldSelStart, OldSelEnd, Sel1, Sel2: TKHexEditorSelection;
   PChI, PChI_First, PChI_Next: PKHexEditorChangeItem;
@@ -2270,7 +1978,7 @@ begin
       end;
       ecLineEnd, ecSelLineEnd:
       begin
-        FSelEnd := MakeSelection((FSelEnd.Index div FLineSize) * FLineSize + FLineSize - 1, cDigitCount - 1);
+        FSelEnd := MakeSelection((FSelEnd.Index div FLineSize) * FLineSize + FLineSize - 1, cHexDigitCount - 1);
         SelectionChanged(Command <> ecSelLineEnd);
       end;
       ecPageUp, ecSelPageUp:
@@ -2317,7 +2025,7 @@ begin
       end;
       ecGotoXY, ecSelGotoXY:
       begin
-        Sel1 := PointToSel(PPoint(Data)^, False, Area);
+        Sel1 := PointToSel(PKPoint64(Data)^, False, Area);
         if Area <> eaNone then
         begin
           FSelEnd := Sel1;
@@ -2370,12 +2078,12 @@ begin
         if FEditArea <> eaNone then
         begin
           // overscroll check
-          P := SelToPoint(MakeSelection(FLineSize - 1, cDigitCount - 1), FEditArea);
+          P := SelToPoint(MakeSelection(FLineSize - 1, cHexDigitCount - 1), FEditArea);
           if P.X > 0 then
           begin
             ScrollBy(1, 0, True);
             P := SelToPoint(FSelEnd, FEditArea);
-            if (P.X < 0) and ((FSelEnd.Index mod FLineSize < FLineSize - 1) or (FSelEnd.Digit < cDigitCount - 1)) then
+            if (P.X < 0) and ((FSelEnd.Index mod FLineSize < FLineSize - 1) or (FSelEnd.Digit < cHexDigitCount - 1)) then
               ExecuteCommand(ecRight)
           end;
         end else
@@ -2395,8 +2103,8 @@ begin
         PChI_First := PChI;
         while PChI <> nil do
         begin
-          I := Length(PChI.Data);
-          J := Min(I, FSize - PChI.SelEnd.Index);
+          Size := Length(PChI.Data);
+          Count := Min(Size, FSize - PChI.SelEnd.Index);
           FRedoList.SetGroupData(PChI.Group, PChI.GroupReason);
           case PChI.ItemReason of
             crCaretPos:
@@ -2405,8 +2113,8 @@ begin
             begin
               if FBuffer <> nil then
               begin
-                SetLength(S, J);
-                System.Move(FBuffer[PChI.SelEnd.Index], S[1], J);
+                SetLength(S, Count);
+                System.Move(FBuffer[PChI.SelEnd.Index], S[1], Count);
               end else
                 S := '';
               FRedoList.AddChange(OppositeReason(PChI.ItemReason), S, PChI.Inserted);
@@ -2421,15 +2129,15 @@ begin
             crDeleteChar, crDeleteDigits, crDeleteString:
             begin
               if PChI.Inserted then
-                ClearString(PChI.SelEnd.Index, I)
+                ClearString(PChI.SelEnd.Index, Size)
               else if FBuffer <> nil then
               begin
-                System.Move(PChI.Data[1], FBuffer[PChI.SelEnd.Index], J);
+                System.Move(PChI.Data[1], FBuffer[PChI.SelEnd.Index], Count);
                 Invalidate;
               end;
             end;
             crInsertChar, crInsertDigits, crInsertString:
-              InsertString(GetRealSelStart.Index, PChI.Data, I);
+              InsertString(GetRealSelStart.Index, PChI.Data);
           end;
           EditAreaChanged;
           SelectionChanged(False, False);
@@ -2454,21 +2162,21 @@ begin
         while PChI <> nil do
         begin
           FUndoList.PokeItem;
-          I := Length(PChI.Data);
+          Size := Length(PChI.Data);
           Sel1 := GetRealSelStart;
           case PChI.ItemReason of
             crInsertChar, crInsertDigits, crInsertString:
             begin
               if PChI.Inserted then
-                InsertString(Sel1.Index, PChI.Data, I)
+                InsertString(Sel1.Index, PChI.Data)
               else if FBuffer <> nil then
               begin
-                System.Move(PChI.Data[1], FBuffer[Sel1.Index], Min(I, FSize - FSelEnd.Index));
+                System.Move(PChI.Data[1], FBuffer[Sel1.Index], Min(Size, FSize - FSelEnd.Index));
                 Invalidate;
               end;
             end;
             crDeleteChar, crDeleteDigits, crDeleteString:
-              ClearString(Sel1.Index, I);
+              ClearString(Sel1.Index, Size);
           end;
           FSelEnd := PChI.SelEnd;
           FSelStart := PChI.SelStart;
@@ -2545,20 +2253,20 @@ begin
             S := AnsiString(ClipBoard.AsText);
             if S <> '' then
             begin
-              M := Length(S);
+              SLen := Length(S);
               if (FEditArea = eaDigits) and ExecuteCommand(ecInsertDigits, Pointer(S)) then
               begin
                 S := '';
-                if M >= cDigitCount then
+                if SLen >= cHexDigitCount then
                 begin
-                  Inc(FSelEnd.Index, M div cDigitCount)
+                  Inc(FSelEnd.Index, SLen div cHexDigitCount)
                 end else
                 begin
-                  Inc(FSelEnd.Digit, M);
-                  if FSelEnd.Digit >= cDigitCount then
+                  Inc(FSelEnd.Digit, SLen);
+                  if FSelEnd.Digit >= cHexDigitCount then
                   begin
                     Inc(FSelEnd.Index);
-                    FSelEnd.Digit := FSelEnd.Digit mod cDigitCount;
+                    FSelEnd.Digit := FSelEnd.Digit mod cHexDigitCount;
                   end;
                 end;
                 SelectionChanged(True);
@@ -2599,17 +2307,17 @@ begin
       begin
         BeginUndoGroup(crInsertChar);
         try
-          N := PByte(Data)^;
+          N := PInteger(Data)^;
           if L.Index > 0 then
             ExecuteCommand(ecClearSelection);
           ValidateSelection(FSelEnd, FEditArea);
           if FBuffer <> nil then
-            I := FBuffer[FSelEnd.Index]
+            B := FBuffer[FSelEnd.Index]
           else
-            I := 0;
+            B := 0;
           CanInsert := (FBuffer = nil) or (FSelEnd.Digit = 0) and
             (not (elOverwrite in FStates) or (FSelEnd.Index = FSize));
-          AddUndoByte(crDeleteChar, I, CanInsert);
+          AddUndoByte(crDeleteChar, B, CanInsert);
           if CanInsert then
             InsertChar(FSelEnd.Index, 0)
           else
@@ -2622,7 +2330,7 @@ begin
             end;
             eaText:
             begin
-              FBuffer[FSelEnd.Index] := N;
+              FBuffer[FSelEnd.Index] := Byte(N);
               InternalMoveRight;
             end;
           end;
@@ -2641,21 +2349,21 @@ begin
             if L.Index > 0 then
               ExecuteCommand(ecClearSelection);
             ValidateSelection(FSelEnd, FEditArea);
-            MoreBytes := Length(S) >= cDigitCount;
+            MoreBytes := Length(S) >= cHexDigitCount;
             if MoreBytes then
               // we don't move digit positions of the remaining block
-              SetLength(S, Length(S) div cDigitCount * cDigitCount);
+              SetLength(S, Length(S) div cHexDigitCount * cHexDigitCount);
             J := 0;
             if (FBuffer <> nil) and (not MoreBytes or (FSelEnd.Digit > 0)) then
             begin
-              I := FBuffer[FSelEnd.Index];
-              S_FirstChar := AnsiChar(I);
+              B := FBuffer[FSelEnd.Index];
+              S_FirstChar := AnsiChar(B);
               S_LastChar := S_FirstChar;
               // split current byte
-              AddUndoByte(crInsertChar, I);
+              AddUndoByte(crInsertChar, B);
               ClearChar(FSelEnd.Index);
               N := Length(S);
-              for I := FSelEnd.Digit to cDigitCount - 1 do
+              for I := FSelEnd.Digit to cHexDigitCount - 1 do
               begin
                 if J < N then
                 begin
@@ -2677,7 +2385,7 @@ begin
                 end
               else
                 S_LastChar := '';
-              O := cDigitCount;
+              O := cHexDigitCount;
             end else
             begin
               S_FirstChar := '';
@@ -2689,22 +2397,21 @@ begin
             begin
               N := Length(S) - O;
               O := J;
-              for I := 0 to N div cDigitCount - 1 do
+              for I := 0 to N div cHexDigitCount - 1 do
               begin
                 K := 0;
-                for J := 1 to cDigitCount do
+                for J := 1 to cHexDigitCount do
                 begin
-                  K := K * cBase;
-                  M := I * 2 + J + O;
-                  Inc(K, Ord(S[M]));
+                  K := K * cHexBase;
+                  Inc(K, Ord(S[I * 2 + J + O]));
                 end;
-                T := AnsiString(Format('%s%s', [T, Char(K)]));
+                T := AnsiString(Format('%s%s', [T, AnsiChar(K)]));
               end;
             end;
             S := S_FirstChar + T + S_LastChar;
             // always insert (don't overwrite)
             AddUndoString(crDeleteDigits, S);
-            InsertString(FSelEnd.Index, S, Length(S));
+            InsertString(FSelEnd.Index, S);
             SelectionChanged(True);
           finally
             EndUndoGroup;
@@ -2723,7 +2430,7 @@ begin
               ExecuteCommand(ecClearIndexSelection);
             // always insert (don't overwrite)
             AddUndoString(crDeleteString, S);
-            InsertString(FSelEnd.Index, S, Length(S));
+            InsertString(FSelEnd.Index, S);
             SelectionChanged(True);
           finally
             EndUndoGroup;
@@ -2816,17 +2523,17 @@ begin
       end;
       ecClearIndexSelection:
       begin
-        I := GetRealSelStart.Index;
-        AddUndoBytes(crInsertString, PBytes(@FBuffer[I]), L.Index, True);
-        ClearString(I, L.Index);
-        FSelEnd := MakeSelection(I, 0);
+        Index := GetRealSelStart.Index;
+        AddUndoBytes(crInsertString, PBytes(@FBuffer[Index]), L.Index, True);
+        ClearString(Index, L.Index);
+        FSelEnd := MakeSelection(Index, 0);
         SelectionChanged(True);
       end;
       ecClearSelection:
       begin
         Sel1 := GetRealSelStart;
         Sel2 := GetRealSelEnd;
-        if (Sel1.Digit > 0) {and (Sel1.Digit + Sel2.Digit = cDigitCount) }then
+        if (Sel1.Digit > 0) {and (Sel1.Digit + Sel2.Digit = cHexDigitCount) }then
         begin
           BeginUndoGroup(crDeleteDigits);
           try
@@ -2844,10 +2551,10 @@ begin
             ClearString(FSelEnd.Index, L.Index);
             FSelEnd := Sel1;
             AddUndoByte(crDeleteChar, FBuffer[Sel1.Index], False);
-            for I := Sel1.Digit to cDigitCount - 1 do
+            for I := Sel1.Digit to cHexDigitCount - 1 do
             begin
-              FBuffer[Sel1.Index] := ReplaceDigit(FBuffer[Sel1.Index], N mod cBase, I);
-              N := N div cBase;
+              FBuffer[Sel1.Index] := ReplaceDigit(FBuffer[Sel1.Index], N mod cHexBase, I);
+              N := N div cHexBase;
             end;
             SelectionChanged(True);
           finally
@@ -2908,40 +2615,40 @@ begin
           end;
           if PSD.ErrorReason = eseOk then
           begin
-            N := Length(S);
+            SLen := Length(S);
             if esoBackwards in PSD.Options then
             begin
               O := -1;
               if (esoEntireScope in PSD.Options) and (esoFirstSearch in PSD.Options) then
-                I := FSize
+                StartIndex := FSize
               else
-                I := GetRealSelStart.Index - 1;
+                StartIndex := GetRealSelStart.Index - 1;
               if esoSelectedOnly in PSD.Options then
               begin
-                M := PSD.SelStart;
+                EndIndex := PSD.SelStart;
                 if esoFirstSearch in PSD.Options then
-                  I := PSD.SelEnd
+                  StartIndex := PSD.SelEnd
               end else
-                M := 0;
-              I := Min(I, FSize - N + 1);
-              if I < M then
+                EndIndex := 0;
+              StartIndex := Min(StartIndex, FSize - SLen + 1);
+              if StartIndex < EndIndex then
                 PSD.ErrorReason := eseNoMatch
             end else
             begin
               O := 1;
               if (esoEntireScope in PSD.Options) and (esoFirstSearch in PSD.Options) then
-                I := 0
+                StartIndex := 0
               else
-                I := GetRealSelEnd.Index;
+                StartIndex := GetRealSelEnd.Index;
               if esoSelectedOnly in PSD.Options then
               begin
-                M := PSD.SelEnd;
+                EndIndex := PSD.SelEnd;
                 if esoFirstSearch in PSD.Options then
-                  I := PSD.SelStart
+                  StartIndex := PSD.SelStart
               end else
-                M := FSize;
-              M := Min(M, FSize - N + 1);
-              if I >= M then
+                EndIndex := FSize;
+              EndIndex := Min(EndIndex, FSize - SLen + 1);
+              if StartIndex >= EndIndex then
                 PSD.ErrorReason := eseNoMatch
             end;
             if PSD.ErrorReason = eseOk then
@@ -2952,28 +2659,28 @@ begin
                 C1 := S[1]
               else
                 C1 := UpCase(S[1]);
-              I := MinMax(I, 0, FSize - 1);
-              while I <> M do
+              StartIndex := MinMax(StartIndex, 0, FSize - 1);
+              while StartIndex <> EndIndex do
               begin
                 if MatchCase then
-                  C2 := AnsiChar(FBuffer[I])
+                  C2 := AnsiChar(FBuffer[StartIndex])
                 else
-                  C2 := UpCase(AnsiChar(FBuffer[I]));
+                  C2 := UpCase(AnsiChar(FBuffer[StartIndex]));
                 if C1 = C2 then
                 begin
-                  if FSize - I >= N then
+                  if FSize - StartIndex >= SLen then
                   begin
                     J := 2;
-                    Dec(I);
-                    while (J <= N) do
+                    Dec(StartIndex);
+                    while (J <= SLen) do
                     begin
                       if MatchCase then
                       begin
-                        C2 := AnsiChar(FBuffer[I + J]);
+                        C2 := AnsiChar(FBuffer[StartIndex + J]);
                         C3 := S[J];
                       end else
                       begin
-                        C2 := Upcase(AnsiChar(FBuffer[I + J]));
+                        C2 := Upcase(AnsiChar(FBuffer[StartIndex + J]));
                         C3 := Upcase(S[J]);
                       end;
                       if C2 = C3 then
@@ -2981,12 +2688,12 @@ begin
                       else
                         Break;
                     end;
-                    Inc(I);
-                    if J = N + 1 then
+                    Inc(StartIndex);
+                    if J = SLen + 1 then
                     begin
                       Found := True;
-                      FSelStart := MakeSelection(I, 0);
-                      FSelEnd := MakeSelection(I + N, 0);
+                      FSelStart := MakeSelection(StartIndex, 0);
+                      FSelEnd := MakeSelection(StartIndex + SLen, 0);
                       if Command = ecReplace then
                       begin
                         if (esoPrompt in PSD.Options) and Assigned(FOnReplaceText) then
@@ -3005,7 +2712,7 @@ begin
                               ExecuteCommand(ecClearIndexSelection)
                             else
                               ExecuteCommand(ecInsertString, Pointer(T));
-                            FSelEnd := MakeSelection(I + Length(T), 0);
+                            FSelEnd := MakeSelection(StartIndex + Length(T), 0);
                             AddUndoCaretPos;
                             if ReplaceAction  = eraAll then
                               Include(PSD.Options, esoAll);
@@ -3018,7 +2725,7 @@ begin
                     end
                   end;
                 end;
-                Inc(I, O);
+                Inc(StartIndex, O);
               end;
               if Found then
               begin
@@ -3093,7 +2800,7 @@ begin
     end;
     if edDigits in FDrawStyles then
     begin
-      Digits := FLineSize * cDigitCount + FLineSize div FDigitGrouping;
+      Digits := FLineSize * cHexDigitCount + FLineSize div FDigitGrouping;
       if FLineSize mod FDigitGrouping = 0 then
         Dec(Digits);
       if edAddress in FDrawStyles then
@@ -3153,7 +2860,7 @@ end;
 
 function TKCustomHexEditor.GetFirstVisibleIndex: Integer;
 begin
-  Result := PointToSel(CreateEmptyPoint, False, FEditArea).Index;
+  Result := PointToSel(CreateEmptyPoint64, False, FEditArea).Index;
 end;
 
 function TKCustomHexEditor.GetInsertMode: Boolean;
@@ -3163,17 +2870,17 @@ end;
 
 function TKCustomHexEditor.GetLastVisibleIndex: Integer;
 begin
-  Result := PointToSel(GetModifiedClientRect.BottomRight, False, FEditArea).Index;
+  Result := PointToSel(PointToPoint64(GetModifiedClientRect.BottomRight), False, FEditArea).Index;
 end;
 
-function TKCustomHexEditor.GetLineCount: Integer;
+function TKCustomHexEditor.GetLineCount: Int64;
 begin
-  Result := DivUp(FSize + 1, FLineSize);
+  Result := DivUp64(FSize + 1, FLineSize);
 end;
 
-function TKCustomHexEditor.GetLines(Index: Integer): TDataSize;
+function TKCustomHexEditor.GetLines(Index: Int64): TDataSize;
 var
-  I: Integer;
+  I: Int64;
 begin
   I := Index * FLineSize;
   if (FBuffer <> nil) and (I >= 0) and (I < FSize) then
@@ -3204,7 +2911,7 @@ begin
   Result := Max(Extent - GetClientWidthChars, 0);
 end;
 
-function TKCustomHexEditor.GetMaxTopLine(Extent: Integer): Integer;
+function TKCustomHexEditor.GetMaxTopLine(Extent: Int64): Int64;
 begin
   if Extent <= 0 then
     Extent := GetAreaDimensions.TotalVert;
@@ -3214,7 +2921,7 @@ end;
 function TKCustomHexEditor.GetPageHorz: Integer;
 begin
   case FEditArea of
-    eaDigits: Result := ClientWidth * FDigitgrouping div (FCharWidth * (cDigitCount * FDigitGrouping + 1));
+    eaDigits: Result := ClientWidth * FDigitgrouping div (FCharWidth * (cHexDigitCount * FDigitGrouping + 1));
     eaText: Result := ClientWidth div FCharWidth;
   else
     Result := 0;
@@ -3307,22 +3014,28 @@ begin
   //{$IFDEF FPC}SetCaretPosEx(Handle,{$ELSE}SetCaretPos({$ENDIF} P.X, P.Y + 1);
 end;
 
-procedure TKCustomHexEditor.InsertChar(At: Integer; Value: Byte);
+procedure TKCustomHexEditor.InsertChar(At: Int64; Value: Byte);
 begin
-  InsertString(At, AnsiChar(Value), 1);
+  InsertString(At, MakeDataSize(@Value, SizeOf(Value)));
 end;
 
-procedure TKCustomHexEditor.InsertString(At: Integer; const Value: AnsiString; Size: Integer);
+procedure TKCustomHexEditor.InsertString(At: Int64; const Value: TDataSize);
 begin
-  if (At >= 0) and (At <= FSize) and (Length(Value) > 0) then
+  if (At >= 0) and (At <= FSize) and (Value.Size > 0) then
   begin
-    Inc(FSize, Size);
+    Inc(FSize, Value.Size);
     ReallocMem(FBuffer, FSize);
-    if At < FSize - Size then
-      Move(FBuffer[At], FBuffer[At + Size], (FSize - At - Size) * SizeOf(Byte));
-    Move(Value[1], FBuffer[At], Size);
+    if At < FSize - Value.Size then
+      Move(FBuffer[At], FBuffer[At + Value.Size], (FSize - At - Value.Size) * SizeOf(Byte));
+    Move(Value.Data^, FBuffer[At], Value.Size);
     UpdateScrollRange;
   end;
+end;
+
+procedure TKCustomHexEditor.InsertString(At: Int64; const Value: AnsiString);
+begin
+  if length(Value) > 0 then
+    InsertString(At, MakeDataSize(@Value[1], Length(Value)));
 end;
 
 function TKCustomHexEditor.InternalGetSelAvail: Boolean;
@@ -3338,7 +3051,7 @@ begin
       Dec(FSelEnd.Digit)
     else if FSelEnd.Index > 0 then
     begin
-      FSelEnd.Digit := cDigitCount - 1;
+      FSelEnd.Digit := cHexDigitCount - 1;
       Dec(FSelEnd.Index);
     end
   end else
@@ -3349,7 +3062,7 @@ procedure TKCustomHexEditor.InternalMoveRight;
 begin
   if FEditArea = eaDigits then
   begin
-    if (FSelEnd.Index < FSize) and (FSelEnd.Digit < cDigitCount - 1) then
+    if (FSelEnd.Index < FSize) and (FSelEnd.Digit < cHexDigitCount - 1) then
       Inc(FSelEnd.Digit)
     else
     begin
@@ -3439,7 +3152,7 @@ end;
 
 procedure TKCustomHexEditor.LoadFromStream(Stream: TStream);
 var
-  Size: Integer;
+  I, Size: Int64;
 begin
   Size := Stream.Size - Stream.Position;
   if Size > 0 then
@@ -3447,7 +3160,14 @@ begin
     Clear;
     FSize := Size;
     GetMem(FBuffer, FSize);
-    Stream.Read(FBuffer^, FSize);
+    // unable to read big file at once, so do it stepwise
+    I := 0;
+    while Size > 0 do
+    begin
+      Stream.Read(FBuffer[I], Min(Size, cIOChunkSize));
+      Inc(I, cIOChunkSize);
+      Dec(Size, cIOChunkSize);
+    end;
     BufferChanged;
   end;
 end;
@@ -3470,7 +3190,7 @@ begin
     Scale := APageSetup.MappedControlPaintAreaWidth / Info.OutlineWidth;
   PageLines := Round(APageSetup.MappedPaintAreaHeight / Scale) div FCharHeight;
   if SelOnly then
-    ActiveLines := DivUp(GetRealSelEnd.Index, FLineSize) - GetRealSelStart.Index div FLineSize
+    ActiveLines := DivUp64(GetRealSelEnd.Index, FLineSize) - GetRealSelStart.Index div FLineSize
   else
     ActiveLines := LineCount;
   Info.OutlineHeight := PageLines * FCharHeight;
@@ -3543,14 +3263,14 @@ end;
 procedure TKCustomHexEditor.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 var
-  P: TPoint;
+  P: TKPoint64;
   Command: TKEditCommand;
 begin
   inherited;
   if Enabled and (Button = mbLeft) and not (ssDouble in Shift) then
   begin
     SafeSetFocus;
-    P := Point(X, Y);
+    P := Point64(X, Y);
     if ssShift in Shift then
       Command := ecSelGotoXY
     else
@@ -3562,15 +3282,15 @@ end;
 
 procedure TKCustomHexEditor.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
-  P: TPoint;
+  P: TKPoint64;
   R: TRect;
 begin
   inherited;
   if (elMouseCapture in FStates) then
   begin
-    P := Point(X, Y);
+    P := Point64(X, Y);
     R := GetModifiedClientRect;
-    if PtInRect(R, P) then
+    if Pt64InRect(R, P) then
       UpdateSelEnd(P, False)
     else if not FScrollTimer.Enabled then
       ScrollTo(P, True, False);
@@ -3586,13 +3306,14 @@ end;
 
 procedure TKCustomHexEditor.PaintLines(const Data: TKHexEditorPaintData);
 var
-  HalfPosWidth, I, Index, J, K, L, M, MaxAddress, WHorz, WVert, WSep,
+  HalfPosWidth, I, J, K, M, MaxAddress, WHorz, WVert, WSep: Integer;
+  Index, L, LineIndex, Addr: Int64;
   LeftIndent, VTextIndent: Integer;
   BC1, BC2, FC1, FC2, PC1: TColor;
   EditorFocused, DrawInactiveCaret, DrawNormal, DigitSep, SelCondition: Boolean;
   S: AnsiString;
   Fmt: string;
-  C: Char;
+  C: AnsiChar;
   R, R1, RClip: TRect;
   OldColorScheme: TKColorScheme;
   ASelStart, ASelEnd: TKHexEditorSelection;
@@ -3679,7 +3400,8 @@ begin
     else
       GetClipBox(Handle, {$IFDEF FPC}@{$ENDIF}RClip);
     // now paint text lines
-    for I := Data.TopLine to Min(L - 1, Data.BottomLine) do
+    LineIndex := Data.TopLine;
+    while LineIndex <= Min(L - 1, Data.BottomLine) do
     begin
       Brush.Style := bsSolid;
       K := LeftIndent;
@@ -3688,7 +3410,7 @@ begin
       begin
         if edAddress in FDrawStyles then
         begin
-          Index := I * FLineSize;
+          Index := LineIndex * FLineSize;
           Brush.Color := clRed;
           if (DrawNormal or Data.PaintSelection) and ((ASelStart.Index <> ASelEnd.Index) or (ASelStart.Digit <> ASelEnd.Digit)) and
             (Index + FLineSize - 1 >= ASelStart.Index) and (Index < ASelEnd.Index) then
@@ -3714,10 +3436,10 @@ begin
           R.Left := K;
           Inc(K, AD.Address * Data.CharWidth);
           R.Right := K;
-          J := I * FLineSize + FAddressOffset;
-          if MaxAddress <> 0 then J := J mod MaxAddress;
+          Addr := LineIndex * FLineSize + FAddressOffset;
+          if MaxAddress <> 0 then Addr := Addr mod MaxAddress;
           FillRect(R);
-          TextOut(R.Left, R.Top + VTextIndent, Format(Fmt, [J]));
+          TextOut(R.Left, R.Top + VTextIndent, Format(Fmt, [Addr]));
           if edHorzLines in FDrawStyles then
           begin
             Brush.Color := PC1;
@@ -3755,15 +3477,15 @@ begin
           Index := 0;
           for J := 0 to FLineSize - 1 do
           begin
-            Index := I * FLineSize + J;
+            Index := LineIndex * FLineSize + J;
             DigitSep := (J < FLineSize - 1) and ((J + 1) mod FDigitGrouping = 0);
             R.Left := K;
-            Inc(K, cDigitCount * Data.CharWidth);
+            Inc(K, cHexDigitCount * Data.CharWidth);
             R.Right := K;
             if Index <= FSize then
             begin
               if Index < FSize then
-                S := AnsiString(Format(cFmtText, [FBuffer[Index]]))
+                S := AnsiString(Format(cHexFmtText, [FBuffer[Index]]))
               else
                 S := '  ';
               if (Index <> FSelStart.Index) and (Index <> FSelEnd.Index) then
@@ -3803,13 +3525,13 @@ begin
                 Brush.Style := bsSolid;
                 FillRect(R);
                 Brush.Style := bsClear;
-                TextOut(R.Left, R.Top + VTextIndent, Char(S[1]));
-                TextOut(R.Left + Data.CharWidth, R.Top + VTextIndent, Char(S[2]));
+                TextOut(R.Left, R.Top + VTextIndent, string(AnsiChar(S[1])));
+                TextOut(R.Left + Data.CharWidth, R.Top + VTextIndent, string(AnsiChar(S[2])));
                 if (Index = FSelEnd.Index) and DrawInactiveCaret then
                 begin
                   // draw inactive caret - place into previous drawn text
                   R1 := R;
-                  Inc(R1.Left, Data.CharWidth * Min(FSelEnd.Digit, cDigitCount - 1));
+                  Inc(R1.Left, Data.CharWidth * Min(FSelEnd.Digit, cHexDigitCount - 1));
                   R1.Right := R1.Left + Data.CharWidth;
                   Font.Color := FC2;
                   Brush.Color := BC2;
@@ -3829,7 +3551,7 @@ begin
                 R1 := R;
                 R1.Right := R1.Left;
                 Inc(R1.Right, Data.CharWidth);
-                for M := 0 to cDigitCount - 1 do
+                for M := 0 to cHexDigitCount - 1 do
                 begin
                   SelCondition :=
                     (ASelStart.Index = ASelEnd.Index) and (
@@ -3883,7 +3605,7 @@ begin
                   Brush.Style := bsSolid;
                   FillRect(R1);
                   Brush.Style := bsClear;
-                  TextOut(R1.Left, R1.Top + VTextIndent, Char(S[M + 1]));
+                  TextOut(R1.Left, R1.Top + VTextIndent, string(AnsiChar(S[M + 1])));
                   if edHorzLines in FDrawStyles then
                   begin
                     Brush.Color := PC1;
@@ -3960,7 +3682,7 @@ begin
           end;
           for J := 0 to FLineSize - 1 do
           begin
-            Index := I * FLineSize + J;
+            Index := LineIndex * FLineSize + J;
             R.Left := K;
             Inc(K, Data.CharWidth);
             R.Right := K;
@@ -4007,7 +3729,7 @@ begin
               if Index < FSize then
               begin
                 Font.Color := FC1;
-                TextOut(R.Left, R.Top + VTextIndent, Char(FCharMapping[FBuffer[Index]]));
+                TextOut(R.Left, R.Top + VTextIndent, string(AnsiChar(FCharMapping[FBuffer[Index]])));
               end;
               if edHorzLines in FDrawStyles then
               begin
@@ -4024,6 +3746,7 @@ begin
           end;
         end;
       end;
+      Inc(LineIndex);
       Inc(R.Top, Data.CharHeight);
     end;
     // now complete blank areas below text and optionally paint separators
@@ -4099,7 +3822,7 @@ begin
   if SelOnly then
   begin
     FirstLine := GetRealSelStart.Index div FLineSize;
-    ActiveLines := DivUp(GetRealSelEnd.Index, FLineSize) - FirstLine;
+    ActiveLines := DivUp64(GetRealSelEnd.Index, FLineSize) - FirstLine;
   end else
   begin
     FirstLine := 0;
@@ -4163,7 +3886,7 @@ begin
 {$ENDIF}
 end;
 
-procedure TKCustomHexEditor.PaintToCanvasEx(ACanvas: TCanvas; ARect: TRect; ALeftChar, ATopLine: Integer);
+procedure TKCustomHexEditor.PaintToCanvasEx(ACanvas: TCanvas; ARect: TRect; ALeftChar: Integer; ATopLine: Int64);
 var
   Data: TKHexEditorPaintData;
   Region: HRGN;
@@ -4195,7 +3918,7 @@ begin
   end;
 end;
 
-function TKCustomHexEditor.PointToSel(P: TPoint; OutOfArea: Boolean; var Area: TKHexEditorArea): TKHexEditorSelection;
+function TKCustomHexEditor.PointToSel(P: TKPoint64; OutOfArea: Boolean; var Area: TKHexEditorArea): TKHexEditorSelection;
 var
   Digit, HalfPosWidth, I, X, X1, XMax: Integer;
   DigitSep: Boolean;
@@ -4244,7 +3967,7 @@ begin
             begin
               DigitSep := (I < FLineSize - 1) and ((I + 1) mod FDigitGrouping = 0);
               X1 := X;
-              Inc(X, cDigitCount * FCharWidth);
+              Inc(X, cHexDigitCount * FCharWidth);
               if DigitSep then
                 Inc(X, HalfPosWidth)
               else if I = FLineSize - 1 then
@@ -4253,7 +3976,7 @@ begin
               begin
                 Digit := (Max(P.X - X1, 0) + HalfPosWidth) div FCharWidth;
                 Sel := MakeSelection(P.Y * FLineSize + I, Digit);
-                if (Digit >= cDigitCount) and (Sel.Index < FSize) then // don't split the FSize character box
+                if (Digit >= cHexDigitCount) and (Sel.Index < FSize) then // don't split the FSize character box
                 begin
                   Inc(Sel.Index);
                   Sel.Digit := 0;
@@ -4331,9 +4054,21 @@ begin
 end;
 
 procedure TKCustomHexEditor.SaveToStream(Stream: TStream);
+var
+  I, Size: Int64;
 begin
   if FBuffer <> nil then
-    Stream.Write(FBuffer^, FSize);
+  begin
+    // unable to write big file at once, so do it stepwise
+    I := 0;
+    Size := FSize;
+    while Size > 0 do
+    begin
+      Stream.Write(FBuffer[I], Min(Size, cIOChunkSize));
+      Inc(I, cIOChunkSize);
+      Dec(Size, cIOChunkSize);
+    end;
+  end;
 end;
 
 procedure TKCustomHexEditor.ScrollBy(HChars, VChars: Integer; UpdateNeeded: Boolean);
@@ -4344,7 +4079,7 @@ begin
     ModifyScrollBar(SB_VERT, cScrollDelta, VChars, UpdateNeeded);
 end;
 
-procedure TKCustomHexEditor.ScrollTo(Point: TPoint; Timed, AlwaysScroll: Boolean);
+procedure TKCustomHexEditor.ScrollTo(Point: TKPoint64; Timed, AlwaysScroll: Boolean);
 var
   ScrollHorz: Boolean;
   R: TRect;
@@ -4356,7 +4091,7 @@ begin
   if ScrollHorz then
   begin
     if Point.X < R.Left then
-      FScrollDeltaX := DivDown(Point.X, FCharWidth)
+      FScrollDeltaX := DivDown64(Point.X, FCharWidth)
     else if Point.X >= R.Right then
       FScrollDeltaX := (Point.X - R.Right) div FCharWidth + 1
     else
@@ -4364,7 +4099,7 @@ begin
   end else
     FScrollDeltaX := 0;
   if Point.Y < R.Top then
-    FScrollDeltaY := DivDown(Point.Y, FCharHeight)
+    FScrollDeltaY := DivDown64(Point.Y, FCharHeight)
   else if Point.Y >= R.Bottom then
     FScrollDeltaY := (Point.Y - R.Bottom) div FCharHeight + 1
   else
@@ -4387,7 +4122,7 @@ begin
   P := ScreenToClient(P);
   if (elMouseCapture in FStates) and not (Dragging or
     PtInRect(GetModifiedClientRect, P)) then
-    ScrollTo(P, True, False)
+    ScrollTo(PointToPoint64(P), True, False)
   else
     FScrollTimer.Enabled := False;
 end;
@@ -4421,17 +4156,17 @@ begin
     (Value.Index = FSize) and (Value.Digit = 0))
 end;
 
-function TKCustomHexEditor.SelToPoint(Value: TKHexEditorSelection; Area: TKHexEditorArea): TPoint;
+function TKCustomHexEditor.SelToPoint(Value: TKHexEditorSelection; Area: TKHexEditorArea): TKPoint64;
 var
   AD: TKHexEditorAreaDimensions;
 begin
-  Result := CreateEmptyPoint;
+  Result := CreateEmptyPoint64;
   AD := GetAreaDimensions;
   ValidateSelection(Value, Area);
   if (Area = eaDigits) and (edDigits in FDrawStyles) then
   begin
-    Result.X := ((Value.Index mod FLineSize) div FDigitGrouping * (cDigitCount * FDigitGrouping + 1) +
-      (Value.Index mod FLineSize) mod FDigitGrouping * cDigitCount + Value.Digit + AD.DigitsIn)
+    Result.X := ((Value.Index mod FLineSize) div FDigitGrouping * (cHexDigitCount * FDigitGrouping + 1) +
+      (Value.Index mod FLineSize) mod FDigitGrouping * cHexDigitCount + Value.Digit + AD.DigitsIn)
   end else if (Area = eaText) and (edText in FDrawStyles) then
     Result.X := (Value.Index mod FLineSize + AD.DigitsIn + AD.Digits + AD.DigitsOut + AD.TextIn)
   else if Area = eaAddress then
@@ -4532,7 +4267,7 @@ begin
   FKeyMapping.Key[Index] := Value;
 end;
 
-procedure TKCustomHexEditor.SetData(Value: TDataSize);
+procedure TKCustomHexEditor.SetData(const Value: TDataSize);
 begin
   if (Value.Data <> FBuffer) or (Value.Size <> FSize) then
   begin
@@ -4611,9 +4346,9 @@ begin
     ScrollBy(Value - FLeftChar, 0, True);
 end;
 
-procedure TKCustomHexEditor.SetLines(Index: Integer; const Value: TDataSize);
+procedure TKCustomHexEditor.SetLines(Index: Int64; const Value: TDataSize);
 var
-  I, Size: Integer;
+  I, Size: Int64;
 begin
   I := Index * FLineSize;
   if (Value.Data <> nil) and (Value.Size > 0) and (I >= 0) and (I <= FSize) then
@@ -4662,12 +4397,12 @@ end;
 function TKCustomHexEditor.SetMouseCursor(X, Y: Integer): Boolean;
 var
   ACursor: TCursor;
-  P: TPoint;
+  P: TKPoint64;
   Area: TKHexEditorArea;
 begin
-  P := Point(X, Y);
+  P := Point64(X, Y);
   PointToSel(P, False, Area);
-  if PtInRect(ClientRect, P) then
+  if Pt64InRect(ClientRect, P) then
   begin
     case Area of
       eaAddress: ACursor := FAddressCursor;
@@ -4688,14 +4423,14 @@ begin
 end;
 
 procedure TKCustomHexEditor.SetOptions(const Value: TKEditOptions);
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 var
   UpdateDropFiles: Boolean;
 {$ENDIF}
 begin
   if Value <> FOptions then
   begin
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     UpdateDropFiles := (eoDropFiles in Value) <> (eoDropFiles in FOptions);
     FOptions := Value;
     // (un)register HWND as drop target
@@ -4761,7 +4496,7 @@ begin
   begin
     FSelEnd.Index := FSelStart.Index + Value.Index;
     FSelEnd.Digit := FSelStart.Digit + Value.Digit;
-    if FSelEnd.Digit >= cDigitCount then
+    if FSelEnd.Digit >= cHexDigitCount then
       Inc(FSelEnd.Index);
     SelectionChanged(False, False);
     Invalidate;
@@ -4778,7 +4513,7 @@ begin
   end;
 end;
 
-procedure TKCustomHexEditor.SetTopLine(Value: Integer);
+procedure TKCustomHexEditor.SetTopLine(Value: Int64);
 begin
   Value := MinMax(Value, 0, GetMaxTopLine);
   if Value <> FTopLine then
@@ -4797,7 +4532,7 @@ end;
 
 procedure TKCustomHexEditor.ShowEditorCaret;
 var
-  P: TPoint;
+  P: TKPoint64;
 begin
   P := SelToPoint(FSelEnd, FEditArea);
   {$IFDEF FPC}SetCaretPosEx(Handle,{$ELSE}SetCaretPos({$ENDIF} P.X, P.Y + 1);
@@ -4934,7 +4669,7 @@ begin
   end;
 end;
 
-procedure TKCustomHexEditor.UpdateSelEnd(Point: TPoint; ClipToClient: Boolean);
+procedure TKCustomHexEditor.UpdateSelEnd(Point: TKPoint64; ClipToClient: Boolean);
 var
   R: TRect;
   Sel: TKHexEditorSelection;
@@ -4977,7 +4712,7 @@ begin
     if Value.Index = FSize then
       Value.Digit := 0
     else
-      Value.Digit := MinMax(Value.Digit, 0, cDigitCount - 1);
+      Value.Digit := MinMax(Value.Digit, 0, cHexDigitCount - 1);
   end else
     Value := MakeSelection(cInvalidIndex, 0);
 end;

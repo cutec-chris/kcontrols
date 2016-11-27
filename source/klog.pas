@@ -22,24 +22,12 @@ unit klog; // lowercase name because of Lazarus/Linux
 interface
 
 uses
-  StdCtrls, Classes, ComCtrls, ExtCtrls, KFunctions, KControls;
+  StdCtrls, Classes, ComCtrls, ExtCtrls, KFunctions;
 
 type
   TKLogDirection = (
     ldAddTop,
     ldAddBottom
-  );
-
-  TKLogType = (
-    lgNone,
-    lgError,
-    lgWarning,
-    lgNote,
-    lgHint,
-    lgInfo,
-    lgInputError,
-    lgIOError,
-    lgAll
   );
 
 const
@@ -134,11 +122,13 @@ end;
 
 { TKLogEventObjects }
 
-function TKLogEventObjects.GetItem(Index: Integer): TKLogEventObject;begin
+function TKLogEventObjects.GetItem(Index: Integer): TKLogEventObject;
+begin
   Result := TKLogEventObject(inherited GetItem(Index));
 end;
 
-procedure TKLogEventObjects.SetItem(Index: Integer; const Value: TKLogEventObject);begin
+procedure TKLogEventObjects.SetItem(Index: Integer; const Value: TKLogEventObject);
+begin
   inherited SetItem(Index, Value);
 end;
 
@@ -330,4 +320,4 @@ begin
   ClearStatusBar;
 end;
 
-end.
+end.

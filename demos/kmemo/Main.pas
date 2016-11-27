@@ -320,31 +320,42 @@ end;
 procedure TMainForm.Test11;
 var
   CO: TKMemoContainer;
+  IB: TKMemoImageBlock;
 begin
   // add container with relative position
   CO := KMemo1.Blocks.AddContainer;
   CO.Position := mbpRelative;
+  CO.BlockStyle.ContentPadding.All := 10;
   CO.LeftOffset := 50;
   CO.TopOffset := 20;
   CO.FixedWidth := True;
   CO.RequiredWidth := 300;
   CO.BlockStyle.Brush.Color := clLime;
   CO.Blocks.AddTextBlock('Text in a container!');
-  CO.Blocks.AddImageBlock('penguins.jpg');
+  IB := CO.Blocks.AddImageBlock('penguins.jpg');
+  IB.Resizable := False;
 end;
 
 procedure TMainForm.Test12;
 var
   TBL: TKMemoTable;
+  I, J: Integer;
 begin
   // add simple table
   TBL := KMemo1.Blocks.AddTable;
-  TBL.ColCount := 2;
-  TBL.RowCount := 2;
-  TBL.Cells[0, 0].Blocks.AddTextBlock('Table text 1');
-  TBL.Cells[0, 1].Blocks.AddTextBlock('Table text 2');
-  TBL.Cells[1, 0].Blocks.AddTextBlock('Table text 3');
-  TBL.Cells[1, 1].Blocks.AddTextBlock('Table text 4');
+  TBL.ColCount := 3;
+  TBL.RowCount := 3;
+  TBL.LockUpdate;
+  try
+    for I := 0 to TBL.ColCount - 1 do
+      for J := 0 to TBL.RowCount - 1 do
+      begin
+        TBL.Cells[I, J].Blocks.AddTextBlock(Format('Table text column:%d row:%d', [I + 1, J + 1]));
+        TBL.Cells[I, J].Blocks.AddParagraph;
+      end;
+  finally
+    TBL.UnLockUpdate;
+  end;
   TBL.CellStyle.BorderWidth := 1;
   TBL.ApplyDefaultCellStyle;
 end;
@@ -491,7 +502,7 @@ end;
 
 procedure TMainForm.Test22;
 var
-  StartPos, EndPos: Integer;
+  StartPos, EndPos: TKMemoSelectionIndex;
   TextStyle: TKMemoTextStyle;
 begin
   // set different text style to selection
@@ -565,11 +576,13 @@ begin
   Preview := TKPrintPreview.Create(nil);
   BM := TBitmap.Create;
   try
-    Preview.Parent := Self;
+    Preview.Visible := False;
     Preview.Height := 297 * 3; // A4 scaled
     Preview.Width := 210 * 3;  // A4 scaled
     Preview.Control := KMemo1;
     Preview.Page := 2;
+    Preview.Parent := Self;
+    Preview.HandleNeeded; // handle needed to update the preview size
     BM.Width := Preview.PageRect.Right - Preview.PageRect.Left;
     BM.Height := Preview.PageRect.Bottom - Preview.PageRect.Top;
     Preview.PaintTo(BM.Canvas);

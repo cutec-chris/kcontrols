@@ -95,6 +95,86 @@ type
   );
 
 const
+{$IFNDEF FPC}
+  { @exclude }
+  KM_MOUSELEAVE = WM_MOUSELEAVE;
+  { @exclude }
+  LM_USER = WM_USER;
+  { @exclude }
+  LM_CANCELMODE = WM_CANCELMODE;
+  { @exclude }
+  LM_CHAR = WM_CHAR;
+  { @exclude }
+  LM_CLEAR = WM_CLEAR;
+  { @exclude }
+  LM_CLOSEQUERY = WM_CLOSE;
+  { @exclude }
+  LM_COPY = WM_COPY;
+  { @exclude }
+  LM_CUT = WM_CUT;
+  { @exclude }
+  LM_DROPFILES = WM_DROPFILES;
+  { @exclude }
+  LM_ERASEBKGND = WM_ERASEBKGND;
+  { @exclude }
+  LM_GETDLGCODE = WM_GETDLGCODE;
+  { @exclude }
+  LM_HSCROLL = WM_HSCROLL;
+  { @exclude }
+  LM_KEYDOWN = WM_KEYDOWN;
+  { @exclude }
+  LM_KILLFOCUS = WM_KILLFOCUS;
+  { @exclude }
+  LM_LBUTTONDOWN = WM_LBUTTONDOWN;
+  { @exclude }
+  LM_LBUTTONUP = WM_LBUTTONUP;
+  { @exclude }
+  LM_MOUSEMOVE = WM_MOUSEMOVE;
+  { @exclude }
+  LM_MOVE = WM_MOVE;
+  { @exclude }
+  LM_PASTE = WM_PASTE;
+  { @exclude }
+  LM_PAINT = WM_PAINT;
+  { @exclude }
+  LM_SETFOCUS = WM_SETFOCUS;
+  { @exclude }
+  LM_SIZE = WM_SIZE;
+  { @exclude }
+  LM_VSCROLL = WM_VSCROLL;
+  { @exclude }
+  LCL_MAJOR = 0;
+  { @exclude }
+  LCL_MINOR = 0;
+  { @exclude }
+  LCL_RELEASE = 0;
+{$ELSE}
+  { @exclude }
+  KM_MOUSELEAVE = LM_MOUSELEAVE; // LCL 0.9.27+, for older it was LM_LEAVE
+ { @exclude }
+ //WM_CTLCOLORBTN = Messages.WM_CTLCOLORBTN;
+ { @exclude }
+ //WM_CTLCOLORSTATIC = Messages.WM_CTLCOLORSTATIC;
+{$ENDIF}
+
+  { Base for custom messages used by KControls suite. }
+  KM_BASE = LM_USER + 1024;
+
+  { Custom message. }
+  KM_LATEUPDATE = KM_BASE + 1;
+
+  { Constant for horizontal resize cursor. }
+  crHResize = TCursor(101);
+  { Constant for vertical resize cursor. }
+  crVResize = TCursor(102);
+  { Constant for uncaptured dragging cursor. }
+  crDragHandFree = TCursor(103);
+  { Constant for captured dragging cursor. }
+  crDragHandGrip = TCursor(104);
+
+  { Checkbox frame size in logical screen units. }
+  cCheckBoxFrameSize = 13;
+
   { Default value for the @link(TKCustomControl.BorderStyle) property. }
   cBorderStyleDef = bsSingle;
 
@@ -175,6 +255,50 @@ const
   cPF_UpdateRange       = $00000002;
 
 type
+{$IFNDEF FPC}
+  { @exclude }
+  TLMessage = TMessage;
+  { @exclude }
+  TLMCopy = TWMCopy;
+  { @exclude }
+  TLMMouse = TWMMouse;
+  { @exclude }
+  TLMNoParams = TWMNoParams;
+  { @exclude }
+  TLMKey = TWMKey;
+  { @exclude }
+  TLMChar = TWMChar;
+  { @exclude }
+  TLMEraseBkGnd = TWMEraseBkGnd;
+  { @exclude }
+  TLMHScroll = TWMHScroll;
+  { @exclude }
+  TLMKillFocus = TWMKillFocus;
+  { @exclude }
+  TLMMove = TWMMove;
+  { @exclude }
+  TLMPaint = TWMPaint;
+  { @exclude }
+  TLMPaste = TWMPaste;
+  { @exclude }
+  TLMSetFocus = TWMSetFocus;
+  { @exclude }
+  TLMSize = TWMSize;
+  { @exclude }
+  TLMVScroll = TWMVScroll;
+
+ {$IFNDEF COMPILER17_UP}
+  { Support for Win64 messaging. }
+  LONG_PTR = Longint;
+ {$ENDIF}
+{$ENDIF}
+
+{$IFDEF FPC}
+  TKClipboardFormat = TClipboardFormat;
+{$ELSE}
+  TKClipboardFormat = Word;
+{$ENDIF}
+
   { Declares possible values for the @link(ScaleMode) property }
   TKPreviewScaleMode = (
     { Apply scale defined by the @link(Scale) property }
@@ -265,6 +389,8 @@ type
     procedure SetRight(const Value: Integer);
     procedure SetTop(const Value: Integer);
     procedure SetAll(const Value: Integer);
+    function GetHeight: Integer;
+    function GetWidth: Integer;
   protected
     procedure Changed;
   public
@@ -284,73 +410,8 @@ type
     property Top: Integer read FTop write SetTop default cRectTopDef;
     property Right: Integer read FRight write SetRight default cRectRightDef;
     property Bottom: Integer read FBottom write SetBottom default cRectBottomDef;
-  end;
-
-  TKObjectList = class;
-
-  TKObject = class(TObject)
-  private
-    FParent: TKObjectList;
-    procedure SetParent(const Value: TKObjectList);
-  protected
-    FUpdateLock: Integer;
-    procedure CallBeforeUpdate; virtual;
-    procedure CallAfterUpdate; virtual;
-    procedure ParentChanged; virtual;
-  public
-    constructor Create; virtual;
-    procedure Assign(ASource: TKObject); virtual;
-    function EqualProperties(AValue: TKObject): Boolean; virtual;
-    procedure LockUpdate; virtual;
-    procedure UnLockUpdate; virtual;
-    function UpdateUnlocked: Boolean; virtual;
-    property Parent: TKObjectList read FParent write SetParent;
-  end;
-
-  TKObjectClass = class of TKObject;
-
-  TKObjectList = class(TObjectList)
-  protected
-    FUpdateLock: Integer;
-    procedure CallBeforeUpdate; virtual;
-    procedure CallAfterUpdate; virtual;
-  public
-    constructor Create; virtual;
-    function Add(AObject: TObject): Integer;
-    procedure Assign(ASource: TKObjectList); virtual;
-    function EqualProperties(AValue: TKObjectList): Boolean; virtual;
-    procedure Insert(Index: Integer; AObject: TObject);
-    procedure LockUpdate; virtual;
-    procedure UnLockUpdate; virtual;
-    function UpdateUnlocked: Boolean; virtual;
-  end;
-
-  TKPersistent = class(TPersistent)
-  private
-    FChanged: Boolean;
-    FUpdateLock: Integer;
-  protected
-    { Call in property setters to track changes to this class. }
-    procedure Changed;
-    { Override to perform requested actions when changing properties in this class.
-      Update will be called either immediately when you call Changed or on next
-      UnlockUpdate call if Changed has been called while updating was locked. }
-    procedure Update; virtual; abstract;
-  public
-    { Creates the instance. }
-    constructor Create; virtual;
-    { Locks updating. Use this if you assign many properties at the
-      same time. Every LockUpdate call must have a corresponding
-      @link(TKPersistent.UnlockUpdate) call, please use a try-finally section. }
-    procedure LockUpdate;
-    { Unlocks page setup updating and updates the page settings.
-      Each @link(TKPersistent.LockUpdate) call must be always followed
-      by the UnlockUpdate call. }
-    procedure UnlockUpdate(ACallUpdate: Boolean = True);
-    { Returns True if updating is not locked, i.e. there is no open
-      LockUpdate and UnlockUpdate pair. }
-    function UpdateUnlocked: Boolean;
-    property UpdateLock: Integer read FUpdateLock;
+    property Width: Integer read GetWidth;
+    property Height: Integer read GetHeight;
   end;
 
   { Base class for all visible controls in KControls. }
@@ -743,6 +804,10 @@ type
     FValidating: Boolean;
     FOnPrintMeasure: TKPrintMeasureEvent;
     FOnUpdateSettings: TNotifyEvent;
+    function GetCurrentPageControl: Integer;
+    function GetCurrentPageExtraLeft: Integer;
+    function GetCurrentPageExtraRight: Integer;
+    function GetIsDefaultPrinter: Boolean;
     procedure SetCopies(Value: Integer);
     procedure SetEndPage(Value: Integer);
     procedure SetUnitExtraSpaceLeft(Value: Double);
@@ -761,9 +826,6 @@ type
     procedure SetScale(Value: Integer);
     procedure SetStartPage(Value: Integer);
     procedure SetUnits(Value: TKPrintUnits);
-    function GetCurrentPageControl: Integer;
-    function GetCurrentPageExtraLeft: Integer;
-    function GetCurrentPageExtraRight: Integer;
   protected
     function GetCanPrint: Boolean; virtual;
     function GetSelAvail: Boolean; virtual;
@@ -873,6 +935,9 @@ type
     property ExtraRightHorzPageCount: Integer read FExtraRightHorzPageCount;
     { Returns extra vertical pages needed to print extra right space. }
     property ExtraRightVertPageCount: Integer read FExtraRightVertPageCount;
+    { Returns True if default printer is selected otherwise Talse.
+      Because of VCL.Printers bug, there is no way to use any printer when False. }
+    property IsDefaultPrinter: Boolean read GetIsDefaultPrinter;
     { Specifies the printing options. }
     property Options: TKPrintOptions read FOptions write SetOptions;
     { Specifies the paper orientation. }
@@ -1200,6 +1265,42 @@ type
     property OnUnDock;
   end;
 
+{ Under Windows this function calls the WinAPI TrackMouseEvent. Under other OSes
+  the implementation is still missing. }
+procedure CallTrackMouseEvent(Control: TWinControl; var Status: Boolean);
+
+{ Center window identified by CenteredWnd with regard to another window BoundWnd. }
+procedure CenterWindowInWindow(CenteredWnd, BoundWnd: HWnd);
+
+{ Center window identified by CenteredWnd with regard to main screen. }
+procedure CenterWindowOnScreen(CenteredWnd: HWnd);
+
+{ Load clipboard data to AStream in a format specified by AFormat (if any).
+  Loads also AText if clipboard has some data in text format. }
+function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
+
+{ Save data from AStream to clipboard in a format specified by AFormat.
+  Optional AText can be saved in text format. }
+function ClipboardSaveStreamAs(const AFormat: string; AStream: TStream; const AText: TKString): Boolean;
+
+{ Enables or disables all children of AParent depending on AEnabled.
+  If ARecursive is True then the function applies to whole tree of controls
+  owned by AParent. }
+procedure EnableControls(AParent: TWinControl; AEnabled: Boolean; ARecursive: Boolean = True);
+
+{ Fills the message record. }
+function FillMessage(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): TLMessage;
+
+{ Searches for a child control. Can search recursively. }
+function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean = True): TControl;
+
+{ Returns the Text property of any TWinControl instance as WideString (up to Delphi 2007)
+  or string (Delphi 2009, Lazarus). }
+function GetControlText(Value: TWinControl): TKString;
+
+{ Returns current status of Shift, Alt and Ctrl keys. }
+function GetShiftState: TShiftState;
+
 { Converts a value given in inches into a value given in specified units.
   <UL>
   <LH>Parameters:</LH>
@@ -1207,6 +1308,9 @@ type
   <LI><I>Value</I> - input value to convert</LI>
   </UL> }
 function InchesToValue(Units: TKPrintUnits; Value: Double): Double;
+
+{ Open URL in external browser. }
+procedure OpenURLWithShell(const AText: TKString);
 
 { Converts value given in specified units into a value given in inches.
   <UL>
@@ -1216,15 +1320,257 @@ function InchesToValue(Units: TKPrintUnits; Value: Double): Double;
   </UL> }
 function ValueToInches(Units: TKPrintUnits; Value: Double): Double;
 
+{ Under Windows this function calls the WinAPI SetWindowRgn. Under other OSes
+  the implementation is still missing. }
+procedure SetControlClipRect(AControl: TWinControl; const ARect: TRect);
+
+{ Modifies the Text property of any TWinControl instance. The value is given as
+  WideString (up to Delphi 2007) or string (Delphi 2009, Lazarus). }
+procedure SetControlText(Value: TWinControl; const Text: TKString);
+
 implementation
 
 uses
-  Math, Types, KGraphics;
+{$IFDEF FPC}
+  {$IFDEF MSWINDOWS}Windows,{$ENDIF}
+{$ELSE}
+  ShlObj, ShellApi,
+{$ENDIF}
+  ClipBrd, Math, Types, KGraphics, KMessageBox, KRes;
 
 const
   cPreviewHorzBorder = 30;
   cPreviewVertBorder = 30;
   cPreviewShadowSize = 3;
+
+procedure CallTrackMouseEvent(Control: TWinControl; var Status: Boolean);
+{$IFDEF MSWINDOWS}
+var
+  TE: TTrackMouseEvent;
+begin
+  if not Status then
+  begin
+    TE.cbSize := SizeOf(TE);
+    TE.dwFlags := TME_LEAVE;
+    TE.hwndTrack := Control.Handle;
+    TE.dwHoverTime := HOVER_DEFAULT;
+    TrackMouseEvent(TE);
+    Status := True;
+  end;
+end;
+{$ELSE}
+begin
+  // This is a TODO for Lazarus team.
+end;
+{$ENDIF}
+
+procedure CenterWindowOnScreen(CenteredWnd: HWnd);
+var
+  R: TRect;
+begin
+  GetWindowRect(CenteredWnd, R);
+  R.Left := Max((Screen.Width - R.Right + R.Left) div 2, 0);
+  R.Top := Max((Screen.Height - R.Bottom + R.Top) div 2, 0);
+  SetWindowPos(CenteredWnd, 0, R.Left, R.Top, 0, 0, SWP_NOSIZE or SWP_NOZORDER);
+end;
+
+procedure CenterWindowInWindow(CenteredWnd, BoundWnd: HWnd);
+var
+  R1, R2: TRect;
+begin
+  GetWindowRect(CenteredWnd, R1);
+  GetWindowRect(BoundWnd, R2);
+  R1.Left := Max((R2.Right - R2.Left - R1.Right + R1.Left) div 2, 0);
+  R1.Top := Max((R2.Bottom - R2.Top - R1.Bottom + R1.Top) div 2, 0);
+  SetWindowPos(CenteredWnd, 0, R1.Left, R1.Top, 0, 0, SWP_NOSIZE or SWP_NOZORDER);
+end;
+
+function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
+var
+  Fmt: TKClipboardFormat;
+  Data: Cardinal;
+begin
+  Result := False;
+{$IFDEF FPC}
+  with Clipboard do
+  begin
+    Fmt := RegisterClipboardFormat(AFormat);
+    if (Fmt <> 0) and HasFormat(Fmt) then
+    begin
+      Clipboard.GetFormat(Fmt, AStream);
+      Result := True;
+    end else
+    begin
+      AText := AsText;
+      Result := AText <> '';
+    end;
+  end;
+{$ELSE}
+  Fmt := RegisterClipboardFormat(PChar(AFormat));
+  if Fmt <> 0 then
+  begin
+    Data := 0;
+    try
+      with Clipboard do
+      begin
+        Open;
+        try
+          Data := GetAsHandle(Fmt);
+          if Data <> 0 then
+          begin
+            AStream.Write(GlobalLock(Data)^, GlobalSize(Data));
+            GlobalUnlock(Data);
+            Result := True;
+          end else
+          begin
+            AText := AsText;
+            Result := AText <> '';
+          end;
+        finally
+          Close;
+        end;
+      end;
+    except
+      GlobalFree(Data);
+    end;
+  end else
+    Clipboard.AsText := AText;
+{$ENDIF}
+end;
+
+function ClipboardSaveStreamAs(const AFormat: string; AStream: TStream; const AText: TKString): Boolean;
+var
+  Fmt: TKClipboardFormat;
+  Data: Cardinal;
+begin
+  Result := False;
+{$IFDEF FPC}
+  with Clipboard do
+  begin
+    Clear;
+    AsText := AText;
+    Fmt := RegisterClipboardFormat(AFormat);
+    if Fmt <> 0 then
+    begin
+      AStream.Seek(0, soFromBeginning);
+      AddFormat(Fmt, AStream);
+      Result := True;
+    end;
+  end;
+{$ELSE}
+  Clipboard.Clear;
+  Fmt := RegisterClipboardFormat(PChar(AFormat));
+  if Fmt <> 0 then
+  begin
+    Data := GlobalAlloc(GHND or GMEM_SHARE, AStream.Size);
+    if Data <> 0 then
+    try
+      AStream.Seek(0, soFromBeginning);
+      AStream.Read(GlobalLock(Data)^, AStream.Size);
+      GlobalUnlock(Data);
+      with Clipboard do
+      begin
+        Open;
+        try
+          Clipboard.AsText := AText;
+          SetAsHandle(Fmt, Data);
+        finally
+          Close;
+        end;
+      end;
+      Result := True;
+    except
+      GlobalFree(Data);
+    end;
+  end else
+    Clipboard.AsText := AText;
+{$ENDIF}
+end;
+
+procedure EnableControls(AParent: TWinControl; AEnabled, ARecursive: Boolean);
+
+  procedure DoEnable(AParent: TWinControl);
+  var
+    I: Integer;
+  begin
+    if AParent <> nil then
+      for I := 0 to AParent.ControlCount - 1 do
+      begin
+        AParent.Controls[I].Enabled := AEnabled;
+        if ARecursive and (AParent.Controls[I] is TWinControl) then
+          DoEnable(TWinControl(AParent.Controls[I]));
+      end;
+  end;
+
+begin
+  DoEnable(AParent);
+end;
+
+function FillMessage(Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): TLMessage;
+begin
+  Result.Msg := Msg;
+  Result.LParam := LParam;
+  Result.WParam := WParam;
+  Result.Result := 0;
+end;
+
+function FindChildControl(AParent: TWinControl; const AName: string; ARecursive: Boolean): TControl;
+
+  function DoSearch(AParent: TWinControl): TControl;
+  var
+    I: Integer;
+    Ctrl: TControl;
+  begin
+    Result := nil;
+    if AParent <> nil then
+      for I := 0 to AParent.ControlCount - 1 do
+      begin
+        Ctrl := AParent.Controls[I];
+        if Ctrl.Name = AName then
+          Result := Ctrl
+        else if ARecursive and (Ctrl is TWinControl) then
+          Result := DoSearch(TWinControl(Ctrl));
+        if Result <> nil then
+          Break;
+      end;
+  end;
+
+begin
+  Result := DoSearch(AParent);
+end;
+
+function GetControlText(Value: TWinControl): TKString;
+
+  function GetTextBuffer(Value: TWinControl): string;
+  begin
+    SetLength(Result, Value.GetTextLen);
+    Value.GetTextBuf(PChar(Result), Length(Result) + 1);
+  end;
+
+begin
+{$IFDEF FPC}
+  Result := GetTextBuffer(Value); // conversion from UTF8 forced anyway
+{$ELSE}
+ {$IFDEF STRING_IS_UNICODE}
+  Result := GetTextBuffer(Value);
+ {$ELSE}
+  if Value.HandleAllocated and (Win32Platform = VER_PLATFORM_WIN32_NT) then // unicode fully supported
+  begin
+    SetLength(Result, GetWindowTextLengthW(Value.Handle));
+    GetWindowTextW(Value.Handle, PWideChar(Result), Length(Result) + 1);
+  end else
+    Result := GetTextBuffer(Value);
+ {$ENDIF}
+{$ENDIF}
+end;
+
+function GetShiftState: TShiftState;
+begin
+  Result := [];
+  if GetKeyState(VK_SHIFT) < 0 then Include(Result, ssShift);
+  if GetKeyState(VK_CONTROL) < 0 then Include(Result, ssCtrl);
+  if GetKeyState(VK_MENU) < 0 then Include(Result, ssAlt);
+end;
 
 function InchesToValue(Units: TKPrintUnits; Value: Double): Double;
 begin
@@ -1235,6 +1581,49 @@ begin
   else
     Result := Value;
   end;
+end;
+
+procedure OpenURLWithShell(const AText: TKString);
+begin
+{$IFDEF FPC}
+  OpenURL(AText);
+{$ELSE}
+  ShellExecuteW(Application.MainForm.Handle, 'open', PWideChar(AText), nil, nil, SW_SHOWNORMAL);
+{$ENDIF}
+end;
+
+procedure SetControlClipRect(AControl: TWinControl; const ARect: TRect);
+begin
+  if AControl.HandleAllocated then
+  begin
+  {$IFDEF MSWINDOWS}
+    SetWindowRgn(AControl.Handle, CreateRectRgn(0, 0, ARect.Right - ARect.Left, ARect.Bottom - ARect.Top), True);
+  {$ELSE}
+    //how to do that?
+  {$ENDIF}
+  end;
+end;
+
+procedure SetControlText(Value: TWinControl; const Text: TKString);
+
+  procedure SetTextBuffer(Value: TWinControl; const Text: string);
+  begin
+    Value.SetTextBuf(PChar(Text));
+  end;
+
+begin
+{$IFDEF FPC}
+  SetTextBuffer(Value, Text); // conversion to UTF8 forced anyway
+{$ELSE}
+ {$IFDEF STRING_IS_UNICODE}
+  SetTextBuffer(Value, Text);
+ {$ELSE}
+  if Value.HandleAllocated and (Win32Platform = VER_PLATFORM_WIN32_NT) then // unicode fully supported
+    SetWindowTextW(Value.Handle, PWideChar(Text))
+  else
+    SetTextBuffer(Value, Text);
+ {$ENDIF}
+{$ENDIF}
 end;
 
 function ValueToInches(Units: TKPrintUnits; Value: Double): Double;
@@ -1307,6 +1696,16 @@ begin
     (FTop = ARect.Top) and (FBottom = ARect.Bottom);
 end;
 
+function TKRect.GetHeight: Integer;
+begin
+  Result := FBottom - FTop;
+end;
+
+function TKRect.GetWidth: Integer;
+begin
+  Result := FRight - FLeft;
+end;
+
 function TKRect.NonZero: Boolean;
 begin
   Result := (FLeft <> 0) or (FTop <> 0) or (FRight <> 0) or (FBottom <> 0);
@@ -1367,198 +1766,6 @@ begin
     FTop := Value;
     Changed;
   end;
-end;
-
-{ TKObject }
-
-constructor TKObject.Create;
-begin
-  inherited;
-  FParent := nil;
-  FUpdateLock := 0;
-end;
-
-procedure TKObject.Assign(ASource: TKObject);
-begin
-end;
-
-procedure TKObject.CallAfterUpdate;
-begin
-end;
-
-procedure TKObject.CallBeforeUpdate;
-begin
-end;
-
-function TKObject.EqualProperties(AValue: TKObject): Boolean;
-begin
-  Result := True;
-end;
-
-procedure TKObject.LockUpdate;
-begin
-  if FUpdateLock <= 0 then
-    CallBeforeUpdate;
-  Inc(FUpdateLock);
-end;
-
-procedure TKObject.ParentChanged;
-begin
-end;
-
-procedure TKObject.SetParent(const Value: TKObjectList);
-begin
-  if Value <> FParent then
-  begin
-    FParent := Value;
-    ParentChanged;
-  end;
-end;
-
-procedure TKObject.UnLockUpdate;
-begin
-  if FUpdateLock > 0 then
-  begin
-    Dec(FUpdateLock);
-    if FUpdateLock = 0 then
-      CallAfterUpdate;
-  end;
-end;
-
-function TKObject.UpdateUnlocked: Boolean;
-begin
-  Result := FUpdateLock <= 0;
-end;
-
-{ TKObjectList }
-
-constructor TKObjectList.Create;
-begin
-  inherited;
-  FUpdateLock := 0;
-end;
-
-function TKObjectList.Add(AObject: TObject): Integer;
-begin
-  if AObject is TKObject then
-    TKObject(AObject).Parent := Self;
-  Result := inherited Add(AObject);
-end;
-
-procedure TKObjectList.Assign(ASource: TKObjectList);
-var
-  I: Integer;
-  Cls: TKObjectClass;
-  SrcItem, DstItem: TKObject;
-begin
-  if ASource <> nil then
-  begin
-    Clear;
-    for I := 0 to ASource.Count - 1 do
-    begin
-      SrcItem := ASource.Items[I] as TKObject;
-      Cls := TKObjectClass(SrcItem.ClassType);
-      DstItem := Cls.Create;
-      DstItem.Parent := Self;
-      DstItem.Assign(SrcItem);
-      Add(DstItem);
-    end;
-  end;
-end;
-
-procedure TKObjectList.CallBeforeUpdate;
-begin
-end;
-
-procedure TKObjectList.CallAfterUpdate;
-begin
-end;
-
-function TKObjectList.EqualProperties(AValue: TKObjectList): Boolean;
-var
-  I: Integer;
-begin
-  Result := False;
-  if AValue <> nil then
-  begin
-    Result := AValue.Count = Count;
-    if Result then
-    begin
-      for I := 0 to Count - 1 do
-        if not TKObject(Items[I]).EqualProperties(TKObject(AValue[I])) then
-        begin
-          Result := False;
-          Break;
-        end;
-    end;
-  end;
-end;
-
-procedure TKObjectList.Insert(Index: Integer; AObject: TObject);
-begin
-  if AObject is TKObject then
-    TKObject(AObject).Parent := Self;
-  inherited Insert(Index, AObject);
-end;
-
-procedure TKObjectList.LockUpdate;
-begin
-  if FUpdateLock <= 0 then
-    CallBeforeUpdate;
-  Inc(FUpdateLock);
-end;
-
-procedure TKObjectList.UnLockUpdate;
-begin
-  if FUpdateLock > 0 then
-  begin
-    Dec(FUpdateLock);
-    if FUpdateLock = 0 then
-      CallAfterUpdate;
-  end;
-end;
-
-function TKObjectList.UpdateUnlocked: Boolean;
-begin
-  Result := FUpdateLock <= 0;
-end;
-
-{ TKPersistent }
-
-constructor TKPersistent.Create;
-begin
-  inherited;
-  FUpdateLock := 0;
-  FChanged := False;
-end;
-
-procedure TKPersistent.Changed;
-begin
-  if FUpdateLock = 0 then
-    Update
-  else
-    FChanged := True;
-end;
-
-procedure TKPersistent.LockUpdate;
-begin
-  Inc(FUpdateLock);
-  FChanged := False;
-end;
-
-procedure TKPersistent.UnlockUpdate(ACallUpdate: Boolean);
-begin
-  if FUpdateLock > 0 then
-  begin
-    Dec(FUpdateLock);
-    if (FUpdateLock = 0) and FChanged and ACallUpdate then
-      Update;
-  end;
-end;
-
-function TKPersistent.UpdateUnlocked: Boolean;
-begin
-  Result := FUpdateLock = 0;
 end;
 
 { TKCustomControl }
@@ -1834,7 +2041,7 @@ begin
   PaintToCanvas(Canvas);
   if Assigned(FMemoryCanvas) then
   begin
-  {$IFDEF USE_WINAPI}
+  {$IFDEF MSWINDOWS}
     // this is the best method but does not work both on QT and GTK!
     MoveWindowOrg(FMemoryCanvas.Handle, -FMemoryCanvasRect.Left, -FMemoryCanvasRect.Top);
     try
@@ -2233,7 +2440,6 @@ begin
   FUnitPaintAreaHeight := 0;
   FUnitPaintAreaWidth := 0;
   FUnits := cUnitsDef;
-  FUpdateLock := 0;
   FValidating := False;
   FOnPrintMeasure := nil;
   FOnUpdateSettings := nil;
@@ -2266,6 +2472,15 @@ begin
     Result := FCurrentPage - FExtraLeftPageCount - FControlPageCount
   else
     Result := 0; // we are in control or extra left area
+end;
+
+function TKPrintPageSetup.GetIsDefaultPrinter: Boolean;
+begin
+  try
+    Result := Printer.PrinterIndex > -MaxInt;
+  except
+    Result := False;
+  end;
 end;
 
 function TKPrintPageSetup.GetSelAvail: Boolean;
@@ -2538,7 +2753,7 @@ procedure TKPrintPageSetup.PrintOut;
   end;
 
 var
-  I, J: Integer;
+  I, J, PrinterCount: Integer;
   AbortPrint: Boolean;
 {  Orientation: TPrinterOrientation;
   PaperSize: TPaperSize;
@@ -2551,63 +2766,76 @@ begin
     UpdateSettings;
     if FPageCount > 0 then
     begin
-      AbortPrint := False;
-      Printer.Title := FTitle;
-      Printer.Copies := 1;
-{      PrinterType := Printer.PrinterType;
-      APageWidth := Printer.PageWidth;
-      APageHeight := Printer.PageHeight;
-      APaperRect := Printer.PaperSize.PaperRect;
-      Orientation := Printer.Orientation;}
-      Printer.BeginDoc;
-      FActive := True;
-      try
-        FCanvas := Printer.Canvas;
-        FControl.PrintNotify(epsBegin, AbortPrint);
-{        Printer.Canvas.Font.Name := 'Arial';
-        Printer.Canvas.Font.color := clBlack;
-        Printer.Canvas.Font.height := 100;
-        Printer.Canvas.TextOut(200, 200, 'hello!');}
-        if not AbortPrint then
-        begin
-          FControl.PrintPaintBegin;
+      if IsDefaultPrinter then
+      begin
+        PrinterCount := 0;
+        try
+          AbortPrint := False;
+          PrinterCount := Printer.Printers.Count;
+          Printer.Title := FTitle;
+          Printer.Copies := 1;
+    {      PrinterType := Printer.PrinterType;
+          APageWidth := Printer.PageWidth;
+          APageHeight := Printer.PageHeight;
+          APaperRect := Printer.PaperSize.PaperRect;
+          Orientation := Printer.Orientation;}
+          Printer.BeginDoc;
+          FActive := True;
           try
-            if poCollate in FOptions then
-              for I := 1 to FCopies do
-              begin
-                FCurrentCopy := I;
-                for J := FStartPage to FEndPage do
-                begin
-                  FCurrentPage := J;
-                  AbortPrint := DoPrint;
-                  if AbortPrint then Break;
-                end;
-                if AbortPrint then Break;
-              end
-            else
-              for J := FStartPage to FEndPage do
-              begin
-                FCurrentPage := J;
-                for I := 1 to FCopies do
-                begin
-                  FCurrentCopy := I;
-                  AbortPrint := DoPrint;
-                  if AbortPrint then Break;
-                end;
-                if AbortPrint then Break;
-              end
+            FCanvas := Printer.Canvas;
+            FControl.PrintNotify(epsBegin, AbortPrint);
+    {        Printer.Canvas.Font.Name := 'Arial';
+            Printer.Canvas.Font.color := clBlack;
+            Printer.Canvas.Font.height := 100;
+            Printer.Canvas.TextOut(200, 200, 'hello!');}
+            if not AbortPrint then
+            begin
+              FControl.PrintPaintBegin;
+              try
+                if poCollate in FOptions then
+                  for I := 1 to FCopies do
+                  begin
+                    FCurrentCopy := I;
+                    for J := FStartPage to FEndPage do
+                    begin
+                      FCurrentPage := J;
+                      AbortPrint := DoPrint;
+                      if AbortPrint then Break;
+                    end;
+                    if AbortPrint then Break;
+                  end
+                else
+                  for J := FStartPage to FEndPage do
+                  begin
+                    FCurrentPage := J;
+                    for I := 1 to FCopies do
+                    begin
+                      FCurrentCopy := I;
+                      AbortPrint := DoPrint;
+                      if AbortPrint then Break;
+                    end;
+                    if AbortPrint then Break;
+                  end
+              finally
+                FControl.PrintPaintEnd;
+              end;
+            end;
+            FCurrentPage := 0;
+            FCurrentCopy := 0;
+            FControl.PrintNotify(epsEnd, AbortPrint);
           finally
-            FControl.PrintPaintEnd;
+            FActive := False;
+            Printer.EndDoc;
+            FCanvas := nil;
           end;
+        except
+          if PrinterCount = 0 then
+            KMsgBox(sPSErrPrintSetup, sPSErrNoPrinterInstalled, [mbOk], miStop)
+          else
+            KMsgBox(sPSErrPrintSetup, sPSErrPrinterUnknown, [mbOk], miStop);
         end;
-        FCurrentPage := 0;
-        FCurrentCopy := 0;
-        FControl.PrintNotify(epsEnd, AbortPrint);
-      finally
-        FActive := False;
-        Printer.EndDoc;
-        FCanvas := nil;
-      end;
+      end else
+        KMsgBox(sPSErrPrintSetup, sPSErrNoDefaultPrinter, [mbOk], miStop);
     end;
   end;
 end;
@@ -2810,16 +3038,6 @@ begin
     try
       if Assigned(FOnUpdateSettings) then
         FOnUpdateSettings(Self);
-//      Printer.Refresh;
-      I := Printer.Printers.IndexOf(FPrinterName);
-      if I >= 0 then
-        Printer.PrinterIndex := I;
-      // set orientation in case somebody assigned it programmatically
-      try
-        Printer.Orientation := FOrientation;
-      except
-        FOrientation := Printer.Orientation;
-      end;
       // limit copies and Scale
       FCopies := MinMax(FCopies, cCopiesMin, cCopiesMax);
       FScale := MinMax(FScale, cScaleMin, cScaleMax);
@@ -2831,25 +3049,42 @@ begin
       finally
         ReleaseDC(0, DC);
       end;
-      // get metrics for the printer
-      if Printer.Printers.Count > 0 then
-      begin
-        FPrinterPageWidth := Printer.PageWidth;
-        FPrinterPageHeight := Printer.PageHeight;
-      {$IFDEF FPC}
-        FPrinterPixelsPerInchX := Printer.XDPI;
-        FPrinterPixelsPerInchY := Printer.YDPI;
-      {$ELSE}
-        FPrinterPixelsPerInchX := GetDeviceCaps(Printer.Handle, LOGPIXELSX);
-        FPrinterPixelsPerInchY := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
-      {$ENDIF}
-      end else
-      begin
-        // fake printer metrics if no printer is installed
-        FPrinterPageWidth := 2360;
-        FPrinterPageHeight := 3400;
-        FPrinterPixelsPerInchX := 300;
-        FPrinterPixelsPerInchY := 300;
+//      Printer.Refresh;
+      // default printer metrics if no printer is installed
+      FOrientation := poPortrait;
+      FPrinterPageWidth := 2360;
+      FPrinterPageHeight := 3400;
+      FPrinterPixelsPerInchX := 300;
+      FPrinterPixelsPerInchY := 300;
+      // get printer data
+      try
+        if IsDefaultPrinter then
+        begin
+          I := Printer.Printers.IndexOf(FPrinterName);
+          if I >= 0 then
+            Printer.PrinterIndex := I;
+          // set orientation in case somebody assigned it programmatically
+          try
+            Printer.Orientation := FOrientation;
+          except
+            FOrientation := Printer.Orientation;
+          end;
+          // get metrics for the printer
+          if Printer.Printers.Count > 0 then
+          begin
+            FPrinterPageWidth := Printer.PageWidth;
+            FPrinterPageHeight := Printer.PageHeight;
+          {$IFDEF FPC}
+            FPrinterPixelsPerInchX := Printer.XDPI;
+            FPrinterPixelsPerInchY := Printer.YDPI;
+          {$ELSE}
+            FPrinterPixelsPerInchX := GetDeviceCaps(Printer.Handle, LOGPIXELSX);
+            FPrinterPixelsPerInchY := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
+          {$ENDIF}
+          end
+        end;
+      except
+        // silent, keep default or successfully obtained data
       end;
       // decide how to outline extent
       if FPrintingMapped then
@@ -3398,7 +3633,7 @@ procedure TKPrintPreview.PaintToCanvas(ACanvas: TCanvas);
 var
   SaveIndex: Integer;
   RClient: TRect;
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
   Org: TPoint;
   MemBitmap, OldBitmap: HBITMAP;
   DC: HDC;
@@ -3409,7 +3644,7 @@ begin
   begin
     SaveIndex := SaveDC(ACanvas.Handle);
     try
-    {$IFDEF USE_WINAPI}
+    {$IFDEF MSWINDOWS}
       if DoubleBuffered then
       begin
         // we must paint always the entire client because of canvas scaling

@@ -41,7 +41,7 @@ unit kicon; // lowercase name because of Lazarus/Linux
 
 interface
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, KGraphics
@@ -563,7 +563,7 @@ procedure UnregisterKIcon;
 
 implementation
 
-{$IFDEF USE_WINAPI}
+{$IFDEF MSWINDOWS}
 
 uses
   Math, Registry, KFunctions, KRes;
@@ -1038,7 +1038,10 @@ begin
           for J := 0 to Bitmap.Height - 1 do
           begin
             C.Value := APngImage.Pixels[I, J];
-            C.A := APngImage.AlphaScanline[J][I];
+            if APngImage.AlphaScanline[J] <> nil then
+              C.A := APngImage.AlphaScanline[J][I]
+            else
+              C.A := 0;
             Bitmap.Pixel[I, J] := C;
           end;
         LoadHandles(FIconCount - 1, MakeHandles(Bitmap.Handle, CreateMonochromeBitmap(Bitmap.Width, Bitmap.Height)), True);
@@ -2692,5 +2695,5 @@ finalization
   UnregisterKIcon;
 {$ENDIF}
 
-{$ENDIF} // USE_WINAPI
+{$ENDIF} // MSWINDOWS
 end.

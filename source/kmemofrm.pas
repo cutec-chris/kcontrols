@@ -200,6 +200,8 @@ type
     procedure ACParaStyleUpdate(Sender: TObject);
     procedure ACParaStyleExecute(Sender: TObject);
     procedure ACFormatCopyExecute(Sender: TObject);
+    procedure EditorBlockEdit(Sender: TObject; ABlock: TKMemoBlock;
+      var Result: Boolean);
     procedure EditorMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure EditorDropFiles(Sender: TObject; X, Y: Integer; Files: TStrings);
@@ -222,6 +224,11 @@ type
     procedure ACInsertContainerExecute(Sender: TObject);
   private
     { Private declarations }
+    FDefaultIndent: Integer;
+    FDefaultTextBoxBorderWidth: Integer;
+    FDefaultTextBoxMargin: Integer;
+    FDefaultTextBoxPadding: Integer;
+    FDefaultTextBoxSize: TPoint;
     FNewFile: Boolean;
     FLastFileName: TKString;
     procedure ParaStyleChanged(Sender: TObject; AReasons: TKMemoUpdateReasons);
@@ -242,7 +249,6 @@ type
     procedure DeleteFromMRUFs(const AFileName: TKString); virtual;
     function EditContainer(AItem: TKMemoBlock): Boolean; virtual;
     function EditImage(AItem: TKMemoBlock): Boolean; virtual;
-    procedure EventEditBlock(AItem: TKMemoBlock; var Result: Boolean);
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -251,6 +257,11 @@ type
     procedure OpenNewFile;
     procedure OpenFile(FileName: TKString);
     function SaveFile(SaveAs, NeedAnotherOp: Boolean): Boolean;
+    property DefaultIndent: Integer read FDefaultIndent write FDefaultIndent;
+    property DefaultTextBoxSize: TPoint read FDefaultTextBoxSize write FDefaultTextBoxSize;
+    property DefaultTextBoxBorderWidth: Integer read FDefaultTextBoxBorderWidth write FDefaultTextBoxBorderWidth;
+    property DefaultTextBoxMargin: Integer read FDefaultTextBoxMargin write FDefaultTextBoxMargin;
+    property DefaultTextBoxPadding: Integer read FDefaultTextBoxPadding write FDefaultTextBoxPadding;
     property NewFile: Boolean read FNewFile;
     property LastFileName: TKString read FLastFileName;
   end;
@@ -271,6 +282,11 @@ constructor TKMemoFrame.Create(AOwner: TComponent);
 begin
   inherited;
   FLastFileName := '';
+  FDefaultIndent := 20;
+  FDefaultTextBoxSize := Point(200, 150);
+  FDefaultTextBoxBorderWidth := 2;
+  FDefaultTextBoxMargin := 5;
+  FDefaultTextBoxPadding := 5;
   FNewFile := False;
   FContainerForm := TKMemoContainerForm.Create(Self);
   FFormatCopyParaStyle := TKMemoParaStyle.Create;
@@ -284,7 +300,6 @@ begin
   FTextStyle := TKMemoTextStyle.Create;
   FTextStyle.OnChanged := TextStyleChanged;
   FTextStyleForm := TKMemoTextStyleForm.Create(Self);
-  Editor.OnEditBlock := EventEditBlock;
   OpenNewFile;
 end;
 
@@ -459,6 +474,15 @@ begin
   TAction(Sender).Checked := True;
 end;
 
+procedure TKMemoFrame.EditorBlockEdit(Sender: TObject; ABlock: TKMemoBlock;
+  var Result: Boolean);
+begin
+  if ABlock is TKMemoImageBlock then
+    Result := EditImage(ABlock)
+  else if ABlock is TKMemoContainer then
+    Result := EditContainer(ABlock);
+end;
+
 procedure TKMemoFrame.ACInsertContainerExecute(Sender: TObject);
 begin
   EditContainer(SelectedBlock);
@@ -466,7 +490,7 @@ end;
 
 procedure TKMemoFrame.ACInsertHyperlinkExecute(Sender: TObject);
 var
-  Item: TKMemoBlock;
+  Block: TKMemoBlock;
   Hyperlink: TKMemoHyperlink;
   Created: Boolean;
 begin
@@ -475,15 +499,15 @@ begin
   begin
     Hyperlink := TKMemoHyperlink.Create;
     Hyperlink.Text := Editor.SelText;
-    Item := Editor.ActiveInnerBlock;
-    if Item is TKMemoHyperlink then
-      Hyperlink.URL := TKMemoHyperlink(Item).URL;
+    Block := Editor.ActiveInnerBlock;
+    if Block is TKMemoHyperlink then
+      Hyperlink.URL := TKMemoHyperlink(Block).URL;
     Created := True;
   end else
   begin
-    Item := Editor.ActiveInnerBlock;
-    if Item is TKMemoHyperlink then
-      Hyperlink := TKMemoHyperlink(Item)
+    Block := Editor.ActiveInnerBlock;
+    if Block is TKMemoHyperlink then
+      Hyperlink := TKMemoHyperlink(Block)
     else
     begin
       Hyperlink := TKMemoHyperlink.Create;
@@ -523,7 +547,7 @@ end;
 
 procedure TKMemoFrame.ACParaDecIndentExecute(Sender: TObject);
 begin
-  FParaStyle.LeftPadding := Max(FParaStyle.LeftPadding - 20, 0);
+  FParaStyle.LeftPadding := Max(FParaStyle.LeftPadding - Editor.Pt2PxX(FDefaultIndent), 0);
 end;
 
 procedure TKMemoFrame.ACParaDecIndentUpdate(Sender: TObject);
@@ -533,12 +557,12 @@ end;
 
 procedure TKMemoFrame.ACParaIncIndentExecute(Sender: TObject);
 begin
-  FParaStyle.LeftPadding := Min(FParaStyle.LeftPadding + 20, Editor.RequiredContentWidth - FParaStyle.RightPadding - 20);
+  FParaStyle.LeftPadding := Min(FParaStyle.LeftPadding + Editor.Pt2PxX(FDefaultIndent), Editor.RequiredContentWidth - FParaStyle.RightPadding - Editor.Pt2PxX(FDefaultIndent));
 end;
 
 procedure TKMemoFrame.ACParaIncIndentUpdate(Sender: TObject);
 begin
-  TAction(Sender).Enabled := FParaStyle.LeftPadding < Editor.RequiredContentWidth - FParaStyle.RightPadding - 20;
+  TAction(Sender).Enabled := FParaStyle.LeftPadding < Editor.RequiredContentWidth - FParaStyle.RightPadding - Editor.Pt2PxX(FDefaultIndent);
 end;
 
 procedure TKMemoFrame.ACParaLeftExecute(Sender: TObject);
@@ -553,7 +577,7 @@ end;
 
 procedure TKMemoFrame.ACParaNumberingExecute(Sender: TObject);
 begin
-  FNumberingForm.Load(Editor.ListTable, Editor.NearestParagraph);
+  FNumberingForm.Load(Editor, Editor.ListTable, Editor.NearestParagraph);
   if FNumberingForm.ShowModal = mrOk then
     FNumberingForm.Save;
 end;
@@ -575,7 +599,7 @@ end;
 
 procedure TKMemoFrame.ACParaStyleExecute(Sender: TObject);
 begin
-  FParaStyleForm.Load(FParaStyle);
+  FParaStyleForm.Load(Editor, FParaStyle);
   if FParaStyleForm.ShowModal = mrOk then
     FParaStyleForm.Save(FParaStyle);
 end;
@@ -622,7 +646,7 @@ end;
 function TKMemoFrame.EditContainer(AItem: TKMemoBlock): Boolean;
 var
   Cont: TKMemoContainer;
-  Items: TKMemoBlocks;
+  Blocks: TKMemoBlocks;
   Created: Boolean;
 begin
   Result := False;
@@ -631,24 +655,24 @@ begin
     Cont := TKMemoContainer(AItem)
   else
   begin
-    Items := AItem.ParentRootBlocks;
-    if (Items.Parent is TKMemoContainer) and (Items.Parent.Position <> mbpText) then
-      Cont := TKMemoContainer(Items.Parent)
+    Blocks := AItem.ParentRootBlocks;
+    if (Blocks.Parent is TKMemoContainer) and (Blocks.Parent.Position <> mbpText) then
+      Cont := TKMemoContainer(Blocks.Parent)
     else
     begin
       Cont := TKMemoContainer.Create;
-      Cont.BlockStyle.ContentPadding.All := 5;
-      Cont.BlockStyle.ContentMargin.All := 5;
+      Cont.BlockStyle.ContentPadding.All := Editor.Pt2PxX(FDefaultTextBoxPadding);
+      Cont.BlockStyle.ContentMargin.All := Editor.Pt2PxX(FDefaultTextBoxMargin);
       Cont.FixedWidth := True;
       Cont.FixedHeight := True;
-      Cont.RequiredWidth := 200;
-      Cont.RequiredHeight := 150;
-      Cont.BlockStyle.BorderWidth := 2;
+      Cont.RequiredWidth := Editor.Pt2PxX(FDefaultTextBoxSize.X);
+      Cont.RequiredHeight := Editor.Pt2PxY(FDefaultTextBoxSize.Y);
+      Cont.BlockStyle.BorderWidth := Editor.Pt2PxX(FDefaultTextBoxBorderWidth);
       Cont.InsertString(sMemoSampleTextBox + cEOL);
       Created := True;
     end;
   end;
-  FContainerForm.Load(Cont);
+  FContainerForm.Load(Editor, Cont);
   if FContainerForm.ShowModal = mrOk then
   begin
     FContainerForm.Save(Cont);
@@ -679,7 +703,7 @@ begin
     Image := TKMemoImageBlock.Create;
     Created := True;
   end;
-  FImageForm.Load(Image);
+  FImageForm.Load(Editor, Image);
   if FImageForm.ShowModal = mrOk then
   begin
     FImageForm.Save(Image);
@@ -725,14 +749,6 @@ begin
     end;
     ACFormatCopy.Checked := False;
   end;
-end;
-
-procedure TKMemoFrame.EventEditBlock(AItem: TKMemoBlock; var Result: Boolean);
-begin
-  if AItem is TKMemoImageBlock then
-    Result := EditImage(AItem)
-  else if AItem is TKMemoContainer then
-    Result := EditContainer(AItem);
 end;
 
 procedure TKMemoFrame.MIFileExitClick(Sender: TObject);
@@ -840,31 +856,21 @@ end;
 
 procedure TKMemoFrame.TextStyleChanged(Sender: TObject);
 var
-  SelAvail, DoSelect: Boolean;
-  SelEnd, StartIndex, EndIndex: Integer;
+  SelAvail: Boolean;
+  SelEnd, StartIndex, EndIndex: TKMemoSelectionIndex;
 begin
   // if there is no selection then simulate one word selection or set style for new text
-  DoSelect := False;
   SelAvail := Editor.SelAvail;
   SelEnd := Editor.SelEnd;
-  try
-    if not SelAvail then
-    begin
-      // simulate MS Word behavior here, SelEnd is caret position
-      // do not select the word if we are at the beginning or end of the word
-      // and allow set another text style for newly added text
-      DoSelect := Editor.GetNearestWordIndexes(SelEnd, False, StartIndex, EndIndex) and (StartIndex < SelEnd) and (SelEnd < EndIndex);
-      if DoSelect then
-        Editor.Select(StartIndex, EndIndex - StartIndex, False);
-    end;
-    if Editor.SelAvail then
-      Editor.SelectionTextStyle := FTextStyle
-    else
-      Editor.NewTextStyle := FTextStyle;
-  finally
-    if DoSelect then
-      Editor.Select(SelEnd, 0, False);
-  end;
+  if SelAvail then
+    Editor.SelectionTextStyle := FTextStyle
+  else if Editor.GetNearestWordIndexes(SelEnd, False, StartIndex, EndIndex) and (StartIndex < SelEnd) and (SelEnd < EndIndex) then
+    // simulate MS Word behavior here, SelEnd is caret position
+    // do not select the word if we are at the beginning or end of the word
+    // and allow set another text style for newly added text
+    Editor.SetRangeTextStyle(StartIndex, EndIndex, FTextStyle)
+  else
+    Editor.NewTextStyle := FTextStyle;
 end;
 
 end.
