@@ -3,7 +3,7 @@
   @created(28 Apr 2009)
   @lastmod(30 July 2015)
 
-  Copyright © Tomas Krysl (tk@@tkweb.eu)<BR><BR>
+  Copyright (c) Tomas Krysl (tk@@tkweb.eu)<BR><BR>
 
   <B>License:</B><BR>
   This code is distributed as a freeware. You are free to use it as part
@@ -200,16 +200,10 @@ type
     procedure ACParaStyleUpdate(Sender: TObject);
     procedure ACParaStyleExecute(Sender: TObject);
     procedure ACFormatCopyExecute(Sender: TObject);
-    procedure EditorBlockEdit(Sender: TObject; ABlock: TKMemoBlock;
-      var Result: Boolean);
-    procedure EditorMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure EditorDropFiles(Sender: TObject; X, Y: Integer; Files: TStrings);
     procedure ACShowFormattingExecute(Sender: TObject);
     procedure ACShowFormattingUpdate(Sender: TObject);
     procedure ACInsertHyperlinkExecute(Sender: TObject);
     procedure ACEditHyperlinkUpdate(Sender: TObject);
-    procedure EditorMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure ACParaNumberingExecute(Sender: TObject);
     procedure ACParaNumberingUpdate(Sender: TObject);
     procedure ACFontSuperscriptExecute(Sender: TObject);
@@ -222,6 +216,10 @@ type
     procedure MIFileExitClick(Sender: TObject);
     procedure ACEditContainerUpdate(Sender: TObject);
     procedure ACInsertContainerExecute(Sender: TObject);
+    procedure EditorBlockEdit(Sender: TObject; ABlock: TKMemoBlock; var Result: Boolean);
+    procedure EditorMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure EditorMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure EditorDropFiles(Sender: TObject; X, Y: Integer; Files: TStrings);
   private
     { Private declarations }
     FDefaultIndent: Integer;
@@ -235,6 +233,7 @@ type
     function SelectedBlock: TKMemoBlock;
     procedure TextStyleChanged(Sender: TObject);
   protected
+    FActionStateChanging: Boolean;
     FFormatCopyParaStyle: TKMemoParaStyle;
     FFormatCopyTextStyle: TKMemoTextStyle;
     FContainerForm: TKMemoContainerForm;
@@ -247,6 +246,7 @@ type
     FTextStyleForm: TKMemoTextStyleForm;
     procedure AddToMRUFs(const AFileName: TKString); virtual;
     procedure DeleteFromMRUFs(const AFileName: TKString); virtual;
+    procedure ChangeActionState(AAction: TObject; AState: Boolean);
     function EditContainer(AItem: TKMemoBlock): Boolean; virtual;
     function EditImage(AItem: TKMemoBlock): Boolean; virtual;
   public
@@ -281,12 +281,13 @@ uses
 constructor TKMemoFrame.Create(AOwner: TComponent);
 begin
   inherited;
-  FLastFileName := '';
+  FActionStateChanging := False;
   FDefaultIndent := 20;
   FDefaultTextBoxSize := Point(200, 150);
   FDefaultTextBoxBorderWidth := 2;
   FDefaultTextBoxMargin := 5;
   FDefaultTextBoxPadding := 5;
+  FLastFileName := '';
   FNewFile := False;
   FContainerForm := TKMemoContainerForm.Create(Self);
   FFormatCopyParaStyle := TKMemoParaStyle.Create;
@@ -371,41 +372,44 @@ end;
 
 procedure TKMemoFrame.ACFontBoldExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.Font.Style := FTextStyle.Font.Style - [fsBold]
-  else
-    FTextStyle.Font.Style := FTextStyle.Font.Style + [fsBold];
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.Font.Style := FTextStyle.Font.Style - [fsBold]
+    else
+      FTextStyle.Font.Style := FTextStyle.Font.Style + [fsBold];
 end;
 
 procedure TKMemoFrame.ACFontBoldUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := fsBold in FTextStyle.Font.Style;
+  ChangeActionState(Sender, fsBold in FTextStyle.Font.Style);
 end;
 
 procedure TKMemoFrame.ACFontItalicExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.Font.Style := FTextStyle.Font.Style - [fsItalic]
-  else
-    FTextStyle.Font.Style := FTextStyle.Font.Style + [fsItalic];
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.Font.Style := FTextStyle.Font.Style - [fsItalic]
+    else
+      FTextStyle.Font.Style := FTextStyle.Font.Style + [fsItalic];
 end;
 
 procedure TKMemoFrame.ACFontItalicUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := fsItalic in FTextStyle.Font.Style;
+  ChangeActionState(Sender, fsItalic in FTextStyle.Font.Style);
 end;
 
 procedure TKMemoFrame.ACFontStrikeoutExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.Font.Style := FTextStyle.Font.Style - [fsStrikeout]
-  else
-    FTextStyle.Font.Style := FTextStyle.Font.Style + [fsStrikeout];
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.Font.Style := FTextStyle.Font.Style - [fsStrikeout]
+    else
+      FTextStyle.Font.Style := FTextStyle.Font.Style + [fsStrikeout];
 end;
 
 procedure TKMemoFrame.ACFontStrikeoutUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := fsStrikeout in FTextStyle.Font.Style;
+  ChangeActionState(Sender, fsStrikeout in FTextStyle.Font.Style);
 end;
 
 procedure TKMemoFrame.ACFontStyleExecute(Sender: TObject);
@@ -430,41 +434,44 @@ end;
 
 procedure TKMemoFrame.ACFontSubscriptExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.ScriptPosition := tpoNormal
-  else
-    FTextStyle.ScriptPosition := tpoSubscript;
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.ScriptPosition := tpoNormal
+    else
+      FTextStyle.ScriptPosition := tpoSubscript;
 end;
 
 procedure TKMemoFrame.ACFontSubscriptUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := FTextStyle.ScriptPosition = tpoSubScript;
+  ChangeActionState(Sender, FTextStyle.ScriptPosition = tpoSubScript);
 end;
 
 procedure TKMemoFrame.ACFontSuperscriptExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.ScriptPosition := tpoNormal
-  else
-    FTextStyle.ScriptPosition := tpoSuperscript;
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.ScriptPosition := tpoNormal
+    else
+      FTextStyle.ScriptPosition := tpoSuperscript;
 end;
 
 procedure TKMemoFrame.ACFontSuperscriptUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := FTextStyle.ScriptPosition = tpoSuperScript;
+  ChangeActionState(Sender, FTextStyle.ScriptPosition = tpoSuperScript);
 end;
 
 procedure TKMemoFrame.ACFontUnderlineExecute(Sender: TObject);
 begin
-  if TAction(Sender).Checked then
-    FTextStyle.Font.Style := FTextStyle.Font.Style - [fsUnderline]
-  else
-    FTextStyle.Font.Style := FTextStyle.Font.Style + [fsUnderline];
+  if not FActionStateChanging then
+    if TAction(Sender).Checked then
+      FTextStyle.Font.Style := FTextStyle.Font.Style - [fsUnderline]
+    else
+      FTextStyle.Font.Style := FTextStyle.Font.Style + [fsUnderline];
 end;
 
 procedure TKMemoFrame.ACFontUnderlineUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := fsUnderline in FTextStyle.Font.Style;
+  ChangeActionState(Sender, fsUnderline in FTextStyle.Font.Style);
 end;
 
 procedure TKMemoFrame.ACFormatCopyExecute(Sender: TObject);
@@ -537,12 +544,13 @@ end;
 
 procedure TKMemoFrame.ACParaCenterExecute(Sender: TObject);
 begin
-  FParaStyle.HAlign := halCenter;
+  if not FActionStateChanging then
+    FParaStyle.HAlign := halCenter;
 end;
 
 procedure TKMemoFrame.ACParaCenterUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := FParaStyle.HAlign = halCenter;
+  ChangeActionState(Sender, FParaStyle.HAlign = halCenter);
 end;
 
 procedure TKMemoFrame.ACParaDecIndentExecute(Sender: TObject);
@@ -567,12 +575,13 @@ end;
 
 procedure TKMemoFrame.ACParaLeftExecute(Sender: TObject);
 begin
-  FParaStyle.HAlign := halLeft;
+  if not FActionStateChanging then
+    FParaStyle.HAlign := halLeft;
 end;
 
 procedure TKMemoFrame.ACParaLeftUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := FParaStyle.HAlign = halLeft;
+  ChangeActionState(Sender, FParaStyle.HAlign = halLeft);
 end;
 
 procedure TKMemoFrame.ACParaNumberingExecute(Sender: TObject);
@@ -589,12 +598,13 @@ end;
 
 procedure TKMemoFrame.ACParaRightExecute(Sender: TObject);
 begin
-  FParaStyle.HAlign := halRight;
+  if not FActionStateChanging then
+    FParaStyle.HAlign := halRight;
 end;
 
 procedure TKMemoFrame.ACParaRightUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := FParaStyle.HAlign = halRight;
+  ChangeActionState(Sender, FParaStyle.HAlign = halRight);
 end;
 
 procedure TKMemoFrame.ACParaStyleExecute(Sender: TObject);
@@ -616,19 +626,30 @@ end;
 
 procedure TKMemoFrame.ACShowFormattingExecute(Sender: TObject);
 begin
-  if ACShowFormatting.Checked then
-    Editor.Options := Editor.Options - [eoShowFormatting]
-  else
-    Editor.Options := Editor.Options + [eoShowFormatting];
+  if not FActionStateChanging then
+    if ACShowFormatting.Checked then
+      Editor.Options := Editor.Options - [eoShowFormatting]
+    else
+      Editor.Options := Editor.Options + [eoShowFormatting];
 end;
 
 procedure TKMemoFrame.ACShowFormattingUpdate(Sender: TObject);
 begin
-  TAction(Sender).Checked := eoShowFormatting in Editor.Options;
+  ChangeActionState(Sender, eoShowFormatting in Editor.Options);
 end;
 
 procedure TKMemoFrame.AddToMRUFs(const AFileName: TKString);
 begin
+end;
+
+procedure TKMemoFrame.ChangeActionState(AAction: TObject; AState: Boolean);
+begin
+  FActionStateChanging := True;
+  try
+    TAction(AAction).Checked := AState;
+  finally
+    FActionStateChanging := False;
+  end;
 end;
 
 procedure TKMemoFrame.CloseFile;

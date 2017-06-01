@@ -6,7 +6,7 @@
   This unit implements the base class TKCustomControl for all visible controls
   from the KControls Development Suite.<BR><BR>
 
-  Copyright © Tomas Krysl (tk@@tkweb.eu)<BR><BR>
+  Copyright (c) Tomas Krysl (tk@@tkweb.eu)<BR><BR>
 
   <B>License:</B><BR>
   This code is distributed as a freeware. You are free to use it as part
@@ -162,6 +162,9 @@ const
 
   { Custom message. }
   KM_LATEUPDATE = KM_BASE + 1;
+
+  { Recalculate scroll box size and scrollbars. }
+  KM_SCROLL = KM_BASE + 2;
 
   { Constant for horizontal resize cursor. }
   crHResize = TCursor(101);
@@ -469,6 +472,7 @@ type
     FMessages: array of TLMessage;
     { Gains access to the list of associated previews. }
     FPreviewList: TList;
+    FResizeCalled: Boolean;
     { Adds a preview control to the internal list of associated previews. }
     procedure AddPreview(APreview: TKPrintPreview);
     { Gives the descendant the possibility to adjust the associated TKPrintPageSetup
@@ -609,7 +613,7 @@ type
     {Returns True if page setup component is allocated for this control. }
     property PageSetupAllocated: Boolean read GetPageSetupAllocated;
     { Just to be compatible with Delphi. }
-  {$IF DEFINED(FPC) OR NOT DEFINED(COMPILER10_UP)}
+  {$IF DEFINED(FPC) OR NOT DEFINED(COMPILER12_UP)}
     property ParentBackground: Boolean read FParentBackground write FParentBackground default True;
     property ParentDoubleBuffered: Boolean read FParentDoubleBuffered write FParentDoubleBuffered default True;
   {$IFEND}
@@ -1277,7 +1281,11 @@ procedure CenterWindowOnScreen(CenteredWnd: HWnd);
 
 { Load clipboard data to AStream in a format specified by AFormat (if any).
   Loads also AText if clipboard has some data in text format. }
-function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
+function ClipboardLoadStreamAs(const AFormat: TKClipboardFormat; AStream: TStream; var AText: TKString): Boolean; overload;
+
+{ Load clipboard data to AStream in a format specified by AFormat (if any).
+  Loads also AText if clipboard has some data in text format. }
+function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean; overload;
 
 { Save data from AStream to clipboard in a format specified by AFormat.
   Optional AText can be saved in text format. }
@@ -1385,19 +1393,17 @@ begin
   SetWindowPos(CenteredWnd, 0, R1.Left, R1.Top, 0, 0, SWP_NOSIZE or SWP_NOZORDER);
 end;
 
-function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
+function ClipboardLoadStreamAs(const AFormat: TKClipboardFormat; AStream: TStream; var AText: TKString): Boolean;
 var
-  Fmt: TKClipboardFormat;
-  Data: Cardinal;
+  Data: HGLOBAL;
 begin
   Result := False;
 {$IFDEF FPC}
   with Clipboard do
   begin
-    Fmt := RegisterClipboardFormat(AFormat);
-    if (Fmt <> 0) and HasFormat(Fmt) then
+    if (AFormat <> 0) and HasFormat(AFormat) then
     begin
-      Clipboard.GetFormat(Fmt, AStream);
+      Clipboard.GetFormat(AFormat, AStream);
       Result := True;
     end else
     begin
@@ -1406,8 +1412,7 @@ begin
     end;
   end;
 {$ELSE}
-  Fmt := RegisterClipboardFormat(PChar(AFormat));
-  if Fmt <> 0 then
+  if AFormat <> 0 then
   begin
     Data := 0;
     try
@@ -1415,12 +1420,15 @@ begin
       begin
         Open;
         try
-          Data := GetAsHandle(Fmt);
-          if Data <> 0 then
+          if HasFormat(AFormat) then
           begin
-            AStream.Write(GlobalLock(Data)^, GlobalSize(Data));
-            GlobalUnlock(Data);
-            Result := True;
+            Data := GetAsHandle(AFormat);
+            if Data <> 0 then
+            begin
+              AStream.Write(GlobalLock(Data)^, GlobalSize(Data));
+              GlobalUnlock(Data);
+              Result := True;
+            end;
           end else
           begin
             AText := AsText;
@@ -1438,10 +1446,19 @@ begin
 {$ENDIF}
 end;
 
+function ClipboardLoadStreamAs(const AFormat: string; AStream: TStream; var AText: TKString): Boolean;
+begin
+{$IFDEF FPC}
+  Result := ClipboardLoadStreamAs(RegisterClipboardFormat(AFormat), AStream, AText);
+{$ELSE}
+  Result := ClipboardLoadStreamAs(RegisterClipboardFormat(PChar(AFormat)), AStream, AText);
+{$ENDIF}
+end;
+
 function ClipboardSaveStreamAs(const AFormat: string; AStream: TStream; const AText: TKString): Boolean;
 var
   Fmt: TKClipboardFormat;
-  Data: Cardinal;
+  Data: HGLOBAL;
 begin
   Result := False;
 {$IFDEF FPC}
@@ -1544,7 +1561,8 @@ function GetControlText(Value: TWinControl): TKString;
   function GetTextBuffer(Value: TWinControl): string;
   begin
     SetLength(Result, Value.GetTextLen);
-    Value.GetTextBuf(PChar(Result), Length(Result) + 1);
+    if Length(Result) > 0 then
+      Value.GetTextBuf(PChar(Result), Length(Result) + 1);
   end;
 
 begin
@@ -1865,7 +1883,10 @@ end;
 procedure TKCustomControl.DoOnChangeBounds;
 begin
   inherited;
-  UpdateSize;
+  if csDesigning in ComponentState then
+    PostLateUpdate(FillMessage(LM_SIZE, 0, 0), True)
+  else
+    UpdateSize;
 end;
 {$ENDIF}
 
@@ -2059,14 +2080,21 @@ end;
 
 procedure TKCustomControl.PostLateUpdate(const Msg: TLMessage;
   IfNotExists: Boolean);
+var
+  MessageExists: Boolean;
+  TmpMsg: tagMSG;
 begin
   if HandleAllocated then
   begin
-    if not IfNotExists or not MessageSearch(Msg.Msg) then
+    MessageExists := MessageSearch(Msg.Msg);
+    if not MessageExists or not IfNotExists then
     begin
       MessagePoke(Msg);
       PostMessage(Handle, KM_LATEUPDATE, 0, 0);
     end;
+    // resend lost message
+    if MessageExists and not PeekMessage(TmpMsg, Handle, KM_LATEUPDATE, KM_LATEUPDATE, PM_NOREMOVE) then
+      PostMessage(Handle, KM_LATEUPDATE, 0, 0);
   end;
 end;
 
@@ -2108,7 +2136,9 @@ end;
 procedure TKCustomControl.Resize;
 begin
   inherited;
-  UpdateSize;
+// Needs to be handled in Lazarus as well!
+// DoOnChangeBounds is not called in LCL when eg. scrollbars change their visibility etc.
+  PostLateUpdate(FillMessage(LM_SIZE, 0, 0), True);
 end;
 
 {$IFNDEF FPC}
@@ -2229,8 +2259,12 @@ end;
 
 procedure TKCustomControl.WMSize(var Msg: TLMSize);
 begin
+  FResizeCalled := False;
   inherited;
-  PostLateUpdate(FillMessage(LM_SIZE, 0, 0), True);
+{$IFnDEF FPC}
+  if not FResizeCalled then
+    PostLateUpdate(FillMessage(LM_SIZE, 0, 0), True);
+{$ENDIF}
 end;
 
 {$IFNDEF FPC}
@@ -3303,7 +3337,7 @@ begin
     WheelClicks := FMouseWheelAccumulator div cWheelDivisor;
     FMouseWheelAccumulator := FMouseWheelAccumulator mod cWheelDivisor;
     BeginScrollWindow;
-    ModifyScrollBar(SB_VERT, -1, -WheelClicks * Delta);
+    ModifyScrollBar(SB_VERT, cScrollDelta, -WheelClicks * Delta);
     EndScrollWindow;
     Result := True;
   end;
@@ -3442,9 +3476,9 @@ begin
   begin
     BeginScrollWindow;
     if DeltaX <> 0 then
-      ModifyScrollBar(SB_HORZ, -1, DeltaX);
+      ModifyScrollBar(SB_HORZ, cScrollDelta, DeltaX);
     if DeltaY <> 0 then
-      ModifyScrollBar(SB_VERT, -1, DeltaY);
+      ModifyScrollBar(SB_VERT, cScrollDelta, DeltaY);
     EndScrollWindow;
   end;
 end;
@@ -3485,10 +3519,9 @@ begin
     SI.cbSize := SizeOf(TScrollInfo);
     SI.fMask := SIF_RANGE or SIF_PAGE or SIF_TRACKPOS;
     GetScrollInfo(Handle, ScrollBar, SI);
-  {$IF DEFINED(LCLGTK2)}
-    {.$WARNING "scrollbar arrows still not working properly on GTK2 in some cases!"}
+  {$IFDEF UNIX}
     SI.nTrackPos := Delta;
-  {$IFEND}
+  {$ENDIF}
     I := PPos^;
     case ScrollCode of
       SB_TOP: I := SI.nMin;
@@ -3498,8 +3531,7 @@ begin
       SB_PAGEUP: Dec(I, SI.nPage);
       SB_PAGEDOWN: Inc(I, SI.nPage);
       SB_THUMBTRACK, SB_THUMBPOSITION: I := SI.nTrackPos;
-    else
-      Inc(I, Delta)
+      cScrollDelta: Inc(I, Delta);
     end;
     if FScaleMode = smWholePage then
       I := MinMax(I, 1, PExtent^)
@@ -3536,12 +3568,12 @@ begin
     BeginScrollWindow;
     if (X > FX) and (FScrollPos.X > 0) or (X < FX) and (FScrollPos.X < FScrollExtent.X) then
     begin
-      ModifyScrollBar(SB_HORZ, -1, FX - X);
+      ModifyScrollBar(SB_HORZ, cScrollDelta, FX - X);
       FX := X;
     end;
     if (Y > FY) and (FScrollPos.Y > 0) or (Y < FY) and (FScrollPos.Y < FScrollExtent.Y) then
     begin
-      ModifyScrollBar(SB_VERT, -1, FY - Y);
+      ModifyScrollBar(SB_VERT, cScrollDelta, FY - Y);
       FY := Y;
     end;
     EndScrollWindow;
@@ -3756,7 +3788,7 @@ begin
   begin
     BeginScrollWindow;
     if FScaleMode = smWholePage then
-      ModifyScrollBar(SB_VERT, -1, Value - FPage)
+      ModifyScrollBar(SB_VERT, cScrollDelta, Value - FPage)
     else
       FPage := Value;
     EndScrollWindow;

@@ -20,8 +20,10 @@ object KMemoFrame: TKMemoFrame
     Font.Name = 'Tahoma'
     Font.Style = []
     Options = [eoDropFiles, eoGroupUndo, eoWantTab]
+    ParentFont = False
     PopupMenu = PMMain
     TabOrder = 0
+    OnBlockEdit = EditorBlockEdit
     OnDropFiles = EditorDropFiles
     OnMouseDown = EditorMouseDown
     OnMouseUp = EditorMouseUp
@@ -246,7 +248,7 @@ object KMemoFrame: TKMemoFrame
     Left = 280
     Top = 72
     Bitmap = {
-      494C010122002500280010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010122002500040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000009000000001002000000000000090
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1833,7 +1835,6 @@ object KMemoFrame: TKMemoFrame
     end
     object MGFont: TMenuItem
       Caption = 'Text'
-      OnClick = ACFontBoldExecute
       object MIFontBold: TMenuItem
         Action = ACFontBold
       end

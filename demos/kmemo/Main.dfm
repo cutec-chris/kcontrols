@@ -2,8 +2,8 @@ object MainForm: TMainForm
   Left = 566
   Top = 256
   Caption = 'KMemoDemo'
-  ClientHeight = 550
-  ClientWidth = 988
+  ClientHeight = 556
+  ClientWidth = 997
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,18 +11,19 @@ object MainForm: TMainForm
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = True
+  Position = poScreenCenter
   OnCreate = FormCreate
   OnResize = FormResize
   DesignSize = (
-    988
-    550)
+    997
+    556)
   PixelsPerInch = 96
   TextHeight = 13
   object PNMain: TPanel
     Left = 0
     Top = 0
-    Width = 988
-    Height = 505
+    Width = 997
+    Height = 519
     Align = alTop
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
@@ -30,31 +31,34 @@ object MainForm: TMainForm
     object Splitter1: TSplitter
       Left = 500
       Top = 0
-      Height = 505
-      ExplicitHeight = 513
+      Width = 4
+      Height = 519
+      ResizeStyle = rsUpdate
     end
     object Panel1: TPanel
       Left = 0
       Top = 0
       Width = 500
-      Height = 505
+      Height = 519
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 0
     end
     object Panel2: TPanel
-      Left = 503
+      Left = 504
       Top = 0
-      Width = 485
-      Height = 505
+      Width = 493
+      Height = 519
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 1
+      ExplicitLeft = 503
+      ExplicitWidth = 494
     end
   end
   object BULoad: TButton
     Left = 24
-    Top = 517
+    Top = 526
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -64,7 +68,7 @@ object MainForm: TMainForm
   end
   object BUPreview: TButton
     Left = 105
-    Top = 517
+    Top = 526
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -74,7 +78,7 @@ object MainForm: TMainForm
   end
   object BUPrint: TButton
     Left = 186
-    Top = 517
+    Top = 526
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -84,7 +88,7 @@ object MainForm: TMainForm
   end
   object BUTest: TButton
     Left = 428
-    Top = 517
+    Top = 526
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -94,7 +98,7 @@ object MainForm: TMainForm
   end
   object CoBTest: TComboBox
     Left = 267
-    Top = 521
+    Top = 530
     Width = 145
     Height = 21
     Style = csDropDownList
@@ -103,10 +107,10 @@ object MainForm: TMainForm
   end
   object KPrintPreviewDialog1: TKPrintPreviewDialog
     Left = 408
-    Top = 512
+    Top = 507
   end
   object KPrintSetupDialog1: TKPrintSetupDialog
     Left = 448
-    Top = 512
+    Top = 507
   end
 end

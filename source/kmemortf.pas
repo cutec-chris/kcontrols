@@ -3,7 +3,7 @@
   @created(28 Apr 2009)
   @lastmod(30 July 2015)
 
-  Copyright © Tomas Krysl (tk@@tkweb.eu)<BR><BR>
+  Copyright (c) Tomas Krysl (tk@@tkweb.eu)<BR><BR>
 
   <B>License:</B><BR>
   This code is distributed as a freeware. You are free to use it as part
@@ -252,7 +252,7 @@ type
   TKMemoRTFImageProp = (rpiPict, rpiJPeg, rpiPng, rpiEmf, rpiWmf, rpiWidth, rpiHeight, rpiCropBottom, rpiCropLeft, rpiCropRight, rpiCropTop,
     rpiReqWidth, rpiReqHeight, rpiScaleX, rpiScaleY);
   TKMemoRTFListProp = (rplList, rplListOverride, rplListLevel, rplListId, rplListIndex, rplListText, rplLevelStartAt, rplLevelNumberType, rplLevelJustify, rplLevelText,
-    rplLevelFontIndex, rplLevelFirstIndent, rplLevelLeftIndent);
+    rplLevelFontIndex, rplLevelFirstIndent, rplLevelLeftIndent, rplPnText);
   TKMemoRTFParaProp = (rppParD, rppIndentFirst, rppIndentBottom, rppIndentLeft, rppIndentRight, rppIndentTop, rppAlignLeft, rppAlignCenter, rppAlignRight, rppAlignJustify,
     rppBackColor, rppNoWordWrap, rppBorderBottom, rppBorderLeft, rppBorderRight, rppBorderTop, rppBorderAll, rppBorderWidth, rppBorderNone, rppBorderRadius, rppBorderColor,
     rppLineSpacing, rppLineSpacingMode, rppPar, rppListIndex, rppListLevel, rppListStartAt);
@@ -322,7 +322,7 @@ type
     FActiveTableRowPadd: TRect;
     FActiveText: TKMemoTextBlock;
     FActiveURL: TKString;
-    FAtIndex: Integer;
+    FAtIndex: TKMemoBlockIndex;
     FColorTable: TKMemoRTFColorTable;
     FCtrlTable: TKMemoRTFCtrlTable;
     FDefaultCodePage: Integer;
@@ -385,8 +385,8 @@ type
   public
     constructor Create(AMemo: TKCustomMemo); override;
     destructor Destroy; override;
-    procedure LoadFromFile(const AFileName: TKString; AtIndex: TKMemoSelectionIndex = -1); virtual;
-    procedure LoadFromStream(AStream: TStream; AtIndex: TKMemoSelectionIndex = -1; AActiveBlocks: TKMemoBlocks = nil); virtual;
+    procedure LoadFromFile(const AFileName: TKString; AActiveBlocks: TKMemoBlocks; AtIndex: TKMemoSelectionIndex); virtual;
+    procedure LoadFromStream(AStream: TStream; AActiveBlocks: TKMemoBlocks; AtIndex: TKMemoSelectionIndex); virtual;
   end;
 
   { Specifies the RTF writer. }
@@ -408,7 +408,7 @@ type
     procedure FillColorTable(ABlocks: TKMemoBlocks); virtual;
     procedure FillFontTable(ABlocks: TKMemoBlocks); virtual;
     procedure WriteBackground; virtual;
-    procedure WriteBody(ABlocks: TKMemoBlocks; AInsideTable: Boolean); virtual;
+    procedure WriteBody(ABlocks: TKMemoBlocks; AInsideOfTable: Boolean); virtual;
     procedure WriteColorTable; virtual;
     procedure WriteContainer(ABlock: TKMemoContainer; AInsideTable: Boolean); virtual;
     procedure WriteCtrl(const ACtrl: AnsiString);
@@ -1480,6 +1480,7 @@ begin
   FCtrlTable.AddCtrl('levelnfc', Integer(rplLevelNumberType), ReadListGroup);
   FCtrlTable.AddCtrl('leveljc', Integer(rplLevelJustify), ReadListGroup);
   FCtrlTable.AddCtrl('leveltext', Integer(rplLevelText), ReadListGroup);
+  FCtrlTable.AddCtrl('pntext', Integer(rplPnText), ReadListGroup);
   // paragraph formatting ctrls
   FCtrlTable.AddCtrl('pard', Integer(rppParD), ReadParaFormatting);
   FCtrlTable.AddCtrl('fi', Integer(rppIndentFirst), ReadParaFormatting);
@@ -1983,7 +1984,7 @@ begin
   end;
 end;
 
-procedure TKMemoRTFReader.LoadFromFile(const AFileName: TKString; AtIndex: TKMemoSelectionIndex);
+procedure TKMemoRTFReader.LoadFromFile(const AFileName: TKString; AActiveBlocks: TKMemoBlocks; AtIndex: TKMemoSelectionIndex);
 var
   Stream: TMemoryStream;
 begin
@@ -1992,56 +1993,19 @@ begin
     Stream := TMemoryStream.Create;
     try
       Stream.LoadFromFile(AFileName);
-      LoadFromStream(Stream, AtIndex);
+      LoadFromStream(Stream, AActiveBlocks, AtIndex);
     finally
       Stream.Free;
     end;
   end;
 end;
 
-procedure TKMemoRTFReader.LoadFromStream(AStream: TStream; AtIndex: TKMemoSelectionIndex; AActiveBlocks: TKMemoBlocks);
-var
-  ContLocalIndex, BlockLocalIndex: TKMemoSelectionIndex;
-  Block, NewBlock: TKMemoBlock;
-  Blocks: TKMemoBlocks;
+procedure TKMemoRTFReader.LoadFromStream(AStream: TStream; AActiveBlocks: TKMemoBlocks; AtIndex: TKMemoSelectionIndex);
 begin
   try
     if AActiveBlocks <> nil then
-      Blocks := AActiveBlocks
-    else if FMemo <> nil then
-      Blocks := FMemo.ActiveBlocks
-    else
-      Blocks := nil;
-    if Blocks <> nil then
     begin
-      if AtIndex < 0 then
-      begin
-        FActiveBlocks := Blocks;
-        FAtIndex := FActiveBlocks.Count; // just append new blocks
-      end else
-      begin
-        FActiveBlocks := Blocks.IndexToBlocks(AtIndex, ContLocalIndex); // get active inner blocks
-        if FActiveBlocks <> nil then
-        begin
-          FAtIndex := FActiveBlocks.IndexToBlockIndex(ContLocalIndex, BlockLocalIndex); // get block index within active blocks
-          if FAtIndex >= 0 then
-          begin
-            // if active block is splittable do it and make space for new blocks
-            Block := FActiveBlocks.Items[FAtIndex];
-            NewBlock := Block.Split(BlockLocalIndex);
-            if NewBlock <> nil then
-            begin
-              Inc(FAtIndex);
-              FActiveBlocks.AddAt(NewBlock, FAtIndex);
-            end;
-          end else
-            FAtIndex := FActiveBlocks.Count; // just append new blocks to active blocks
-        end else
-        begin
-          FActiveBlocks := Blocks;
-          FAtIndex := FActiveBlocks.Count; // just append new blocks to active blocks
-        end;
-      end;
+      FActiveBlocks := AActiveBlocks.SplitForInsert(AtIndex, FAtIndex);
       FActiveBlocks.LockUpdate;
       try
         FActiveColor := nil;
@@ -2073,17 +2037,20 @@ begin
         FDefaultFontIndex := 0;
         FIgnoreChars := 0;
         FStream := AStream;
-        ReadStream;
+        try
+          ReadStream;
+        finally
+          FlushText;
+          FlushShape;
+          FlushImage;
+          FlushTable;
+          FActiveState.Free;
+          if FMemo <> nil then
+            FListTable.AssignToListTable(FMemo.ListTable, FFontTable);
+          FActiveBlocks.ConcatEqualBlocks;
+          FActiveBlocks.FixEmptyBlocks;
+        end;
       finally
-        FlushText;
-        FlushShape;
-        FlushImage;
-        FlushTable;
-        FActiveState.Free;
-        if FMemo <> nil then
-          FListTable.AssignToListTable(FMemo.ListTable, FFontTable);
-        FActiveBlocks.ConcatEqualBlocks;
-        FActiveBlocks.FixEmptyBlocks;
         FActiveBlocks.UnlockUpdate;
       end;
     end;
@@ -2412,7 +2379,12 @@ begin
     rgListLevelText: AddTextToNumberingFormat(string(AText));
   else
     case TKMemoRTFListProp(ACtrl) of
-      rplListText: FActiveState.Group := rgUnknown; // ignore text
+      rplListText, rplPnText: FActiveState.Group := rgUnknown; // ignore text
+      // Note: ignore old Word 95 'pntext' tag as well. We do not support
+      // old Word 95 numbering style (so IMO it should not be ignored)
+      // but some documents mix '\pntext' with '\lsN' control words.
+      // This has the effect that the numbering is displayed twice if '\pntext'
+      // is not ignored.
     end;
   end;
 end;
@@ -3161,6 +3133,11 @@ begin
               Blocks1 := SavedBlocks1;
           end;
         end;
+        // If the parent blocks are maintained by a container (eg. a table) which
+        // is placed in the text then take the outermost non-container blocks placed in the text
+        // or a container with relative or absolute position.
+        while (Blocks1.Parent is TKMemoContainer) and (Blocks1.Parent.Position = mbpText) do
+          Blocks1 := Blocks1.ParentBlocks;
         ActiveBlocks := Blocks1;
       end;
       ActiveBlocks.ConcatEqualBlocks;
@@ -3212,7 +3189,7 @@ begin
   end;
 end;
 
-procedure TKMemoRTFWriter.WriteBody(ABlocks: TKMemoBlocks; AInsideTable: Boolean);
+procedure TKMemoRTFWriter.WriteBody(ABlocks: TKMemoBlocks; AInsideOfTable: Boolean);
 var
   I: Integer;
   Block: TKMemoBlock;
@@ -3255,22 +3232,22 @@ begin
           end;
           if Block is TKMemoParagraph then
           begin
-            if not AInsideTable or (I < ABlocks.Count - 1) then
-              WriteParagraph(TKMemoParagraph(Block), AInsideTable);
+            if not AInsideOfTable or (I < ABlocks.Count - 1) then
+              WriteParagraph(TKMemoParagraph(Block), AInsideOfTable);
             IsParagraph := True;
           end
           else if Block is TKMemoTextBlock then
             WriteTextBlock(TKMemoTextBlock(Block), FSelectedOnly)
           else if Block is TKMemoImageBlock then
-            WriteImageBlock(TKMemoImageBlock(Block), AInsideTable)
+            WriteImageBlock(TKMemoImageBlock(Block), AInsideOfTable)
           else if Block is TKMemoContainer then
           begin
             if Block is TKMemoTable then
               WriteTable(TKMemoTable(Block))
             else if Block.Position <> mbpText then
-              WriteContainer(TKMemoContainer(Block), AInsideTable)
+              WriteContainer(TKMemoContainer(Block), AInsideOfTable)
             else
-              WriteBody(TKMemoContainer(Block).Blocks, AInsideTable) // just save the contents
+              WriteBody(TKMemoContainer(Block).Blocks, AInsideOfTable) // just save the contents
           end;
         end;
       end;

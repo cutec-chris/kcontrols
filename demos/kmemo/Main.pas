@@ -10,9 +10,9 @@ uses
   {$ELSE}
     Windows, Messages,
   {$ENDIF}
-    SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs, KGrids,
-    KMemo, KGraphics, KFunctions, ExtCtrls, Grids, StdCtrls, KEditCommon,
-    KSplitter, KControls, KLabels, KDialogs;
+    SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
+    KMemo, KGraphics, KFunctions, StdCtrls, ExtCtrls, KEditCommon,
+    KControls, KDialogs;
 
 type
 
@@ -71,6 +71,8 @@ type
     procedure Test23;
     procedure Test24;
     procedure Test25;
+    procedure Test26;
+    procedure Test27;
   end;
 
 var
@@ -110,7 +112,7 @@ begin
   KMemo2.Parent := Panel2;
   KMemo2.Clear;
 
-  for I := 1 to 25 do
+  for I := 1 to 27 do
     CoBTest.Items.Add('Test ' + IntToStr(I));
 end;
 
@@ -148,13 +150,13 @@ end;
 
 procedure TMainForm.LoadFiles;
 begin
-//  KMemo1.LoadFromRTF('test.rtf');
-//  KMemo1.LoadFromRTF('test1.rtf');
-//  KMemo1.LoadFromRTF('test_no_img.rtf');
-//  KMemo1.LoadFromRTF('test_simple.rtf');
-  KMemo1.LoadFromRTF('kmemo_manual.rtf');
-//  KMemo1.LoadFromRTF('simpletable.rtf');
-//  KMemo1.LoadFromRTF('advancedtable.rtf');
+//  KMemo1.LoadFromRTF('../../test.rtf');
+//  KMemo1.LoadFromRTF('../../test1.rtf');
+//  KMemo1.LoadFromRTF('../../test_no_img.rtf');
+//  KMemo1.LoadFromRTF('../../test_simple.rtf');
+  KMemo1.LoadFromRTF('../../kmemo_manual.rtf');
+//  KMemo1.LoadFromRTF('../../simpletable.rtf');
+//  KMemo1.LoadFromRTF('../../advancedtable.rtf');
 //  KMemo1.Select(10, 510);
   KMemo1.SaveToRTF('test_save.rtf', False, True);
 
@@ -591,6 +593,41 @@ begin
     Preview.Free;
     BM.Free;
   end;
+end;
+
+procedure TMainForm.Test26;
+begin
+  // testing RTF property
+  KMemo1.RTF := '{\rtf1\ansi\ansicpg1250\deff0\uc1{\fonttbl{\f0\fcharset1\fprq0 Tahoma;}}{\colortbl\red255\green255\blue255;\red0\green0\blue255;\red0\green0\blue0;}'+
+    '{\*\listtable}{\*\listoverridetable}{\field{\*\fldinst HYPERLINK http://www.google.com/}{\fldrslt{\f0\ul\fs16\cf1 http://www.google.com/}}}{\pard\ql\brdrcf2\f0\ul\fs16\cf1\par}}';
+  KMemo1.Blocks.AddTextBlock('123');
+  KMemo1.RTF := '{\rtf1\ansi\ansicpg1250\deff0\uc1{\fonttbl{\f0\fcharset1\fprq0 Tahoma;}}{\colortbl\red255\green255\blue255;\red0\green0\blue255;\red0\green0\blue0;}'+
+    '{\*\listtable}{\*\listoverridetable}{\field{\*\fldinst HYPERLINK http://www.google.com/}{\fldrslt{\f0\ul\fs16\cf1 http://www.google.com/}}}{\pard\ql\brdrcf2\f0\ul\fs16\cf1\par}}';
+  // there should be only one hyperlink shown
+end;
+
+procedure TMainForm.Test27;
+var
+  MyStream: tstream;
+begin
+  // adding RTF chunks from stream
+  KMemo1.Blocks.Clear;
+  MyStream := TStringStream.Create('{\field{\*\fldinst HYPERLINK "http://www.google.com/"}{\fldrslt http://www.google.com}}');
+  try
+    KMemo1.Blocks.LoadFromRTFStream (MyStream);
+    KMemo1.Blocks.AddParagraph;
+  finally
+    MyStream.Free;
+  end;
+
+  MyStream := TStringStream.Create('{\field{\*\fldinst HYPERLINK "http://www.yahoo.com/"}{\fldrslt http://www.yahoo.com}}');
+  try
+    KMemo1.Blocks.LoadFromRTFStream (MyStream);
+    KMemo1.Blocks.AddParagraph;
+  finally
+    MyStream.Free;
+  end;
+  // there should be google hyperlink on first line and then yahoo hyperlink on second line
 end;
 
 end.

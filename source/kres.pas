@@ -3,7 +3,7 @@
   @created(20 Oct 2001)
   @lastmod(12 Feb 2014)
 
-  Copyright © 2001-2014 Tomas Krysl (tk@@tkweb.eu)<BR><BR>
+  Copyright (c) 2001-2014 Tomas Krysl (tk@@tkweb.eu)<BR><BR>
 
   <B>License:</B><BR>
   This code is distributed as a freeware. You are free to use it as part
@@ -120,6 +120,7 @@ resourcestring
   sPSErrNoPrinterInstalled = 'No printer is installed on this computer.';
   sPSErrNoDefaultPrinter = 'No default printer selected, cannot continue. Please select default printer.';
   sPSErrPrinterUnknown = 'Unknown error in printer interface. Please restart application and try again.';
+  sPSErrPrinterConfiguration = 'Printer configuration not supported.';
 
   // KControlsDesign texts
   sInvalidGraphicFormat = 'Invalid graphic format.';
@@ -153,10 +154,8 @@ procedure LocalizeToCzech;
 
 implementation
 
+{$IFnDEF FPC}
 uses
-{$IFDEF FPC}
-  LResources;
-{$ELSE}
   Windows, KFunctions;
 {$ENDIF}
 
@@ -198,7 +197,11 @@ begin
     OK := VirtualProtect(Res, Sizeof(TResStringRec), PAGE_EXECUTE_READWRITE, @oldProtect);
     if OK then
     begin
-      Res.Identifier := LONG_PTR(NewValue);
+    {$IFDEF COMPILER16_UP} // new code for Delphi XE2 and later
+      Res.Identifier := NativeUInt(NewValue);
+    {$ELSE}
+      Res.Identifier := LongInt(NewValue);
+    {$ENDIF}
       VirtualProtect(Res, SizeOf(TResStringRec), oldProtect, @oldProtect);
     end;
   end;
@@ -296,6 +299,9 @@ begin
   ResMod(@sPSAllPages, 'Všechny stránky (%d)');
   ResMod(@sPSErrPrintSetup, 'Chybné nastavení tisku');
   ResMod(@sPSErrNoPrinterInstalled, 'Na poèítaèi není instalována žádná tiskárna.');
+  ResMod(@sPSErrNoDefaultPrinter, 'Není zvolena výchozí tiskárna, nelze pokraèovat. Zvolte výchozí tiskárnu.');
+  ResMod(@sPSErrPrinterUnknown, 'Neznámá chyba v tiskovém rozhraní. Prosím restartujte aplikaci a zkuste to znovu.');
+  ResMod(@sPSErrPrinterConfiguration, 'Konfigurace tiskárny není podporována.');
 
   // KControlsDesign texts
   ResMod(@sInvalidGraphicFormat, 'Neplatný grafický formát.');

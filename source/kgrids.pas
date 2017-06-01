@@ -1,9 +1,9 @@
-﻿{ @abstract(This unit contains the TKGrid component and all supporting classes)
+{ @abstract(This unit contains the TKGrid component and all supporting classes)
   @author(Tomas Krysl (tk@tkweb.eu))
   @created(15 Oct 2006)
   @lastmod(6 Jul 2014)
 
-  Copyright Š Tomas Krysl (tk@@tkweb.eu)<BR><BR>
+  Copyright (c) Tomas Krysl (tk@@tkweb.eu)<BR><BR>
 
   This unit provides an enhanced replacement for components contained
   in Grids.pas. Major features:
@@ -42,15 +42,19 @@ unit kgrids; // lowercase name because of Lazarus/Linux
 {$include kcontrols.inc}
 {$WEAKPACKAGEUNIT ON}
 
+{$IFnDEF FPC}
+ {$WARN COMPARISON_FALSE OFF} // because of {$IF lcl_fullversion >= 1080000} lines...
+{$ENDIF}
+
 interface
 
 uses
 {$IFDEF FPC}
-  LCLType, LCLIntf, LMessages, LCLProc, LResources,
+  LCLType, LCLIntf, LCLVersion, LMessages, LCLProc, LResources,
 {$ELSE}
   Windows, Messages,
 {$ENDIF}
-  SysUtils, Classes, Graphics, Controls, Forms, StdCtrls, ExtCtrls,
+  SysUtils, Classes, Contnrs, Graphics, Controls, Forms, StdCtrls, ExtCtrls,
   KFunctions, KGraphics, KControls, Types
 {$IFDEF TKGRID_USE_JCL}
   , JclUnicode
@@ -525,7 +529,11 @@ type
     { The focused cell is not the base cell and expands the selection. }
     rsDefault,
     { The focused cell is the base cell and does not expand the selection. }
-    rsMS_Excel
+    rsMS_Excel,
+    { The same as rsDefault, except that multiple selections are allowed. }
+    rsMultiSelect,
+    { The same as rsMS_Excel, except that multiple selections are allowed. }
+    rsMultiSelectMS_Excel
   );
 
   { @abstract(Declares the type e.g. for the @link(TKCustomGrid.Selection) property)
@@ -569,7 +577,9 @@ type
     { Force calling of the @link(TKCustomGrid.ClampInView) method. }
     sfClampInView,
     { Do not set @link(TKCustomGrid.FMemCol) and @link(TKCustomGrid.FMemRow) fields. }
-    sfNoMemPos
+    sfNoMemPos,
+    { @link(TKGridSelectionStage.ssInit) updates selection instead of adding a new one. }
+    sfUpdateCurrentSelection
   );
 
   { Set type for @link(TKGridSelectionFlag) enumeration. }
@@ -1166,6 +1176,37 @@ const
 type
   TKCustomGrid = class;
   TKGridCell = class;
+
+  { TKGridRectItem }
+  { @abstract(Base class to store selection rectangle)
+    This is the base class to store a selection rectangle. }
+  TKGridRectItem = class
+  private
+    FGrid: TKCustomGrid;
+    FRect: TKGridRect;
+    procedure SetRect(const Value: TKGridRect);
+  public
+    property Rect: TKGridRect read FRect write SetRect;
+    constructor Create(AGrid: TKCustomGrid);
+  end;
+
+  { TKGridRectList }
+  { @abstract(Object list to store more selection rectangles)
+    This is the object list to store more selection rectangles. }
+  TKGridRectList = class(TObjectList)
+  private
+    FGrid: TKCustomGrid;
+    function GetItem(Index: Integer): TKGridRectItem;
+    procedure SetItem(Index: Integer; const Value: TKGridRectItem);
+  protected
+    procedure Notify(Ptr: Pointer; Action: TListNotification); override;
+  public
+    constructor Create(AGrid: TKCustomGrid);
+    function Add(const ARect: TKGridRect): Integer;
+    function Find(ACol, ARow: Integer): Integer; overload;
+    function Find(const ARect: TKGridRect): Integer; overload;
+    property Items[Index: Integer]: TKGridRectItem read GetItem write SetItem; default;
+  end;
 
   { @abstract(Declares event handler for the @link(TKCustomGrid.OnCompareCellInstances))
     <UL>
@@ -2054,6 +2095,9 @@ type
 
   { @abstract(KGrid base component) This is the class that you use
     as the ancestor for your TKCustomGrid overrides. }
+
+  { TKCustomGrid }
+
   TKCustomGrid = class(TKCustomControl)
   private
   {$IFDEF FPC}
@@ -2170,6 +2214,7 @@ type
     function GetSelectionCount: Integer;
     function GetSelectionRect: TRect;
     function GetSelections(Index: Integer): TKGridRect;
+    function GetSelectionsRect(Index: Integer): TRect;
     function GetSortCol: Integer;
     function GetSortRow: Integer;
     function GetTabStops(Index: Integer): Boolean;
@@ -2185,7 +2230,7 @@ type
   {$ENDIF}
     procedure SetCell(ACol, ARow: Integer; Value: TKGridCell);
     procedure SetCellPainterClass(Value: TKGridCellPainterClass);
-    procedure SetCells(ACol, ARow: Integer; const Text: TKString);
+    procedure SetCells(ACol, ARow: Integer; const Text: KFunctions.TKString);
     procedure SetCellSpan(ACol, ARow: Integer; Value: TKGridCellSpan);
     procedure SetCol(Value: Integer);
     procedure SetColCount(Value: Integer);
@@ -2239,6 +2284,8 @@ type
     procedure WMSetFocus(var Msg: TLMSetFocus); message LM_SETFOCUS;
     procedure WMVScroll(var Msg: TLMVScroll); message LM_VSCROLL;
   protected
+    { Index of active selection, ie. selection being manipulated by mouse. }
+    FActiveSelection: Integer;
     { Gains access to the cell hint timer. }
     FCellHintTimer: TTimer;
     { Two-dimensional dynamic array to store cell instances. Different cell
@@ -2279,6 +2326,8 @@ type
     FHitCell: TKGridCoord;
     { Specifies the point where left mouse button has been pressed. }
     FHitPos: TPoint;
+    { Prevent infinite UpdateScrollRange calls. }
+    FInUpdateScrollRange: Boolean;
     { Prevent infinite LateUpdate calls. }
     FLateUpdating: Boolean;
     { Field for @link(TKCustomGrid.MaxCol) property. Descendants can modify it. }
@@ -2292,6 +2341,8 @@ type
     { Specifies the cell where mouse is over. FMouseOver is valid if goMouseOverCells
       is included in @link(TKCustomGrid.Options). }
     FMouseOver: TKGridCoord;
+    { Method pointer to the private TControl.FontChanged. }
+    FOldFontChanged: TNotifyEvent;
     { Dynamic array to store row instances. Different row classes can
       be used for row instances. }
     FRows: TKGridAxisItems;
@@ -2300,7 +2351,7 @@ type
     FSelection: TKGridRect;
     { Specifies all selections except FSelection. This separation is done for
       backward compatibility. }
-    FSelections: array of TKGridRect;
+    FSelections: TKGridRectList;
     { Current scrolling position in pixels (bound to cell boundary). }
     FScrollPos: TPoint;
     { Current scrolling offset in pixels for smSmooth mode (relative to cell boundary). }
@@ -2316,7 +2367,7 @@ type
     { Adjusts any selection rectangle specified by ASelection to be valid
       selection in @link(goRowSelect) mode, i.e. makes ASelection to span
       the entire row(s). }
-    function AdjustSelection(const ASelection: TKGridRect): TKGridRect; virtual;
+    function AdjustSelection(const ARect: TKGridRect): TKGridRect; virtual;
     { Calls @link(TKCustomGrid.OnBeginColDrag) event handler or column class aware equivalent.
       See the @link(TKGridBeginDragEvent) type for parameter interpretation. }
     function BeginColDrag(var Origin: Integer;  const MousePt: TPoint): Boolean; virtual;
@@ -2446,12 +2497,22 @@ type
     { Calls @link(TKCustomGrid.OnEndRowSizing) event handler.
       See the @link(TKGridEndSizingEvent) type for parameter interpretation. }
     function EndRowSizing(var Index, Pos: Integer): Boolean; virtual;
+    { Performs the same as FixGridRect plus adjusts entire selection list. }
+    function FixAllSelections(var ARect: TKGridRect): Boolean; virtual;
+    { Adjusts the grid rectangle identified by Rect and makes it valid. This method
+      is intended to adjust FSelection or a rectangle assumed to be assigned
+      to FSelection later. Returns True if selection was changed and False if no fix was needed.}
+    function FixSelection(var ARect: TKGridRect): Boolean; virtual;
+    { Called from Font.OnChange. Performs some internal adjustments. }
+    procedure FontChange(Sender: TObject); virtual;
     { Destroys all column, row and cell instances. }
     procedure FreeData;
     { Returns information structure for column or row axis. Some fields of the
       Info structure must be already defined before calling this function.
       See @link(TKGridAxisInfo) for details. }
     procedure GetAxisInfo(var Info: TKGridAxisInfo); virtual;
+    { Returns default row height according to control font height. }
+    function GetDefaultRowHeight: Integer; virtual;
     { Returns bounding rectangle where dragged column or row should appear. }
     function GetDragRect(Info: TKGridAxisInfoBoth; out DragRect: TRect): Boolean; virtual;
     { Returns the combination of invisible cells that must be taken into account
@@ -2467,7 +2528,7 @@ type
     procedure InternalExchangeRows(Index1, Index2: Integer); virtual;
     { Used internally to check if the given grid rectangle contains any merged cell areas
       and if so, then expand it so that the result encloses all respective merged cells. }
-    function InternalExpandGridRect(const GridRect: TKGridRect): TKGridRect; virtual;
+    function InternalExpandGridRect(const ARect: TKGridRect): TKGridRect; virtual;
     { Retrieves the base cell if the cell given by ACol and ARow belongs to a merged cell
       or returns ACol and ARow if it is a non-merged cell. }
     procedure InternalFindBaseCell(ACol, ARow: Integer; out BaseCol, BaseRow: Integer); virtual;
@@ -2501,6 +2562,11 @@ type
     function InternalGetRowHeights(Index: Integer): Integer; virtual;
     { Returns always True. }
     function InternalGetSelAvail: Boolean; override;
+    { Returns the selection rectangle for given grid rectangle. }
+    function InternalGetSelectionRect(const ARect: TKGridRect): TRect; virtual;
+    { Returns selection rectangle for a selection if it can be found for a cell given by
+      ACol and ARow, otherwise returns rectangle for the main selection. }
+    function InternalGetSelectionsRect(ACol, ARow: Integer): TRect; virtual;
     { Returns height and spacing for several cells according to given parameters. }
     procedure InternalGetVExtent(AIndex, ARowSpan: Integer;
       out DestExtent, DestSpacing: Integer); virtual;
@@ -2546,12 +2612,19 @@ type
     procedure InternalSetFixedRows(Value: Integer); virtual;
     { Used internally to set row count. }
     procedure InternalSetRowCount(Value: Integer); virtual;
+    { Assigns new selection and performs all necessary adjustments. }
+    procedure InternalSetSelection(NewSelection: TKGridRect;
+      Flags: TKGridSelectionFlags); virtual;
+    { Assigns new selection and performs all necessary adjustments if the new selection is valid. }
+    function InternalCheckAndSetSelection(const NewSelection: TKGridRect): Boolean; virtual;
     { Allows the descendant to decide whether the goVirtualGrid option can be modified. }
     function InternalUpdateVirtualGrid: Boolean; virtual;
     { Allows the changes to be reflected. }
     procedure InternalUnlockUpdate; override;
     { Determines if control can be painted with OS themes. }
     function IsThemed: Boolean; override;
+    { Returns true if DefaultRowHeight property should be stored in dfm file. }
+    function IsDefaultRowHeightStored: Boolean; virtual;
     { Overriden method - see Delphi help. Responds to keyboard events. Implements
       TCustomGrid specific behavior when the user presses a key. }
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -2603,7 +2676,7 @@ type
     { Paints a range of cells. }
     function PaintCells(ACanvas: TCanvas; CellBitmap: TKAlphaBitmap;
       MainClipRgn: HRGN; FirstCol, LastCol, FirstRow, LastRow, X, Y, MaxX,
-      MaxY: Integer; Printing, PaintSelection: Boolean; const ABlockRect: TRect): TPoint;
+      MaxY: Integer; Printing, PaintSelection: Boolean): TPoint;
     { Paints the suggestion for drop target when dragging a column or row. }
     procedure PaintDragSuggestion(ACanvas: TCanvas); virtual;
     { Paints a header terminating rectangle to align the header with the right
@@ -2664,15 +2737,9 @@ type
     { Calls @link(TKCustomGrid.OnSelectCell) event handler or cell class aware equivalent
       See the @link(TKGridSelectCellEvent) type for parameter interpretation. }
     function SelectCell(ACol, ARow: Integer): Boolean; virtual;
-    procedure SelectionChanged(NewSelection: TKGridRect;
-      Flags: TKGridSelectionFlags);
     { Calls @link(TKCustomGrid.OnSelectionExpand) event handler or cell class aware equivalent
       See the @link(TKGridSelectionExpandEvent) type for parameter interpretation. }
     function SelectionExpand(ACol, ARow: Integer): Boolean; virtual;
-    { Adjusts the grid rectangle identified by Sel and makes it valid. This method
-      is intended to adjust FSelection or a rectangle assumed to be assigned
-      to FSelection later. Returns True if selection was changed and False if no fix was needed.}
-    function SelectionFix(var Sel: TKGridRect): Boolean; virtual;
     { Initializes or expands the current selection and performs all necessary adjustments.
       ACol and ARow are the indexes used to initialize or expand the selection.
       Stage determines, if the selection should be initialized or expanded.
@@ -2683,8 +2750,6 @@ type
       Flags: TKGridSelectionFlags): Boolean; virtual;
     { Calls @link(TKCustomGrid.OnSelectionChanged) event handler. }
     procedure DoSelectionChanged;
-    { Assigns new selection and performs all necessary adjustments. }
-    function SelectionSet(const NewSelection: TKGridRect): Boolean;
   {$IFDEF FPC}
     { Overriden LCL method. This allows a custom mouse cursor to be assigned for the grid. }
     procedure SetCursor(Value: TCursor); override;
@@ -2730,9 +2795,9 @@ type
       decide whether these need to be invalidated. }
     procedure UpdateScrollRange(Horz, Vert, UpdateNeeded: Boolean); virtual;
     { Validate initial row indexes. }
-    procedure ValidateInitialRowPositions;
+    procedure ValidateInitialRowPositions; virtual;
     { Validate initial column indexes. }
-    procedure ValidateInitialColPositions;
+    procedure ValidateInitialColPositions; virtual;
     { Validate initial row and column indexes. }
     procedure ValidateInitialPositions;
   {$IFNDEF FPC}
@@ -2746,24 +2811,27 @@ type
     constructor Create(AOwner: TComponent); override;
     { Destroys the instance along with all allocated column, row and cell data. }
     destructor Destroy; override;
+    { Programmatically add new selection. Returns index of the newly added selection
+      in selection list. Does not alter main selection or any other selections. }
+    function AddSelection(ARect: TKGridRect): Integer; virtual;
     { Resizes the column automatically so that the cell contents fit horizontally.
       Does include merged cell areas with their base cells located in this column.
       Set FixedCells to True to include fixed cells into autosizing. }
-    procedure AutoSizeCol(ACol: Integer; FixedCells: Boolean = True);
+    procedure AutoSizeCol(ACol: Integer; FixedCells: Boolean = True); virtual;
     { Resizes the entire grid automatically so that the cell contents fit both
       horizontally and vertically. Set FixedCells to True to include fixed cells
       into autosizing. }
-    procedure AutoSizeGrid(Priority: TKGridMeasureCellPriority; FixedCells: Boolean = True);
+    procedure AutoSizeGrid(Priority: TKGridMeasureCellPriority; FixedCells: Boolean = True); virtual;
     { Resizes the row automatically so that the cell contents fit vertically.
       Does include merged cell areas with their base cells located in this row.
       Set FixedCells to True to include fixed cells into autosizing. }
-    procedure AutoSizeRow(ARow: Integer; FixedCells: Boolean = True);
+    procedure AutoSizeRow(ARow: Integer; FixedCells: Boolean = True); virtual;
     { Determines if a cell specified by ACol and ARow is selected. }
     function CellSelected(ACol, ARow: Integer): Boolean; virtual;
     { Returns the bounding rectangle of a cell specified by ACol and ARow without the
       column and row spacing areas defined by @link(TKCustomGrid.GridLineWidth).
       The function returns False if the cell indexes are invalid. }
-    function CellRect(ACol, ARow: Integer; out R: TRect; VisibleOnly: Boolean = False): Boolean;
+    function CellRect(ACol, ARow: Integer; out R: TRect; VisibleOnly: Boolean = False): Boolean; virtual;
     { Returns the left and top coordinates of a cell specified by ACol and ARow.
       The function returns False if the cell indexes are invalid. }
     function CellToPoint(ACol, ARow: Integer; var Point: TPoint;
@@ -2776,6 +2844,8 @@ type
     procedure ClearGrid; virtual;
     { Clears all cells in a row identified by ARow. }
     procedure ClearRow(ARow: Integer); virtual;
+    { Programmatically clear all selections from selection list. }
+    procedure ClearSelections; virtual;
     { Clears sorting mode of both rows and columns if grid sorting mode is not locked
       by @link(TKCustomGrid.LockSortMode). }
     procedure ClearSortMode;
@@ -2851,7 +2921,7 @@ type
       TScrollBar. See @link(TKGridEditorKeyPreviewEvent) for interpretation of
       another parameters. }
     procedure DefaultScrollBarKeyPreview(AEditor: TScrollBar; ACol, ARow: Integer;
-      var Key: Word; ShiftState: TShiftState; var IsGridKey: Boolean);
+      var Key: Word; ShiftState: TShiftState; var IsGridKey: Boolean); virtual;
     { Deletes a column specified by At. At must be valid column index and
       @link(TKCustomGrid.ColCount) must be > 1. Otherwise, nothing happens. }
     procedure DeleteCol(At: Integer); virtual;
@@ -2866,16 +2936,24 @@ type
       and @link(TKCustomGrid.RowCount) must be > 1. Otherwise, nothing happens.
       Count will be adapted so that no more but available rows will be deleted. }
     procedure DeleteRows(At, Count: Integer); virtual;
+    { Deletes specified selection from selection list. }
+    procedure DeleteSelection(Index: Integer); virtual;
+    {$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
+    procedure DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
+      const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean); override;
+    {$IFEND}
     { Retrieves the base cell if the cell given by ACol and ARow belongs to a merged cell
       or returns ACol and ARow if it is a non-merged cell. }
     procedure FindBaseCell(ACol, ARow: Integer; out BaseCol, BaseRow: Integer); virtual;
     { Returns index of referenced column if this belongs to this grid. }
-    function FindCol(ACol: TKGridCol): Integer;
+    function FindCol(ACol: TKGridCol): Integer; virtual;
     { Returns index of referenced row if this belongs to this grid. }
-    function FindRow(ARow: TKGridRow): Integer;
+    function FindRow(ARow: TKGridRow): Integer; virtual;
+    { Returns selection index for a first selection that includes ACol and ARow. }
+    function FindSelection(ACol, ARow: Integer): Integer; virtual;
     { Selects a cell specified by ACol and ARow. If the grid has input focus,
       this cell becomes it automatically. }
-    procedure FocusCell(ACol, ARow: Integer);
+    procedure FocusCell(ACol, ARow: Integer); virtual;
     { Returns miscellaneous information about both grid axes, i.e. column axis and row axis. }
     function GetAxisInfoBoth(Mask: TKGridAxisInfoMask): TKGridAxisInfoBoth;
     { Returns miscellaneous information about column axis. }
@@ -2887,22 +2965,22 @@ type
     function GetDrawState(ACol, ARow: Integer; AFocused: Boolean): TKGridDrawState; virtual;
     { Determines if the entire grid rectangle lies within the non-fixed and thus
       selectable area. }
-    function GridRectSelectable(const GridRect: TKGridRect): Boolean; virtual;
+    function GridRectSelectable(const ARect: TKGridRect): Boolean; virtual;
     { Converts a grid rectangle into client coordinates. Set VisibleOnly to True
-      to take only the visible part of the rectangle. Indexes in GridRect will be
+      to take only the visible part of the rectangle. Indexes in ARect will be
       automatically trimmed either to non-fixed area or to a fixed area depending
-      on top-left cell specified in GridRect. Set Merged to True to expand the grid
+      on top-left cell specified in ARect. Set Merged to True to expand the grid
       rectangle by possible merged cell areas. The returned coordinates include
       column and row spacing areas defined by @link(TKCustomGrid.GridLineWidth). }
-    function GridRectToRect(GridRect: TKGridRect; var R: TRect;
+    function GridRectToRect(ARect: TKGridRect; var R: TRect;
       VisibleOnly: Boolean = False; Merged: Boolean = True): Boolean; virtual;
-    { Determines if all indexes in GridRect are valid column or row indexes. }
-    function GridRectValid(const GridRect: TKGridRect): Boolean; virtual;
+    { Determines if all indexes in ARect are valid column or row indexes. }
+    function GridRectValid(const ARect: TKGridRect): Boolean; virtual;
     { Determines if the grid, inplace editor or any child window of inplace editor
       has input focus. }
     function HasFocus: Boolean; virtual;
     { Forces the cell hint to hide. }
-    procedure HideCellHint;
+    procedure HideCellHint; virtual;
     { Determines the initial index of a column identified by ACol. This function
       is a part of index mapping mechanism. Initial index is assigned to a column
       immediately after it is inserted into the grid either by changing
@@ -2964,9 +3042,9 @@ type
       @link(goIndicateSelection) mode if grid updating is not locked
       by @link(TKCustomControl.LockUpdate). }
     procedure InvalidateCurrentSelection; virtual;
-    { Invalidates the grid rectangle specified by GridRect if grid updating is not locked
+    { Invalidates the grid rectangle specified by ARect if grid updating is not locked
       by @link(TKCustomControl.LockUpdate). }
-    procedure InvalidateGridRect(const GR: TKGridRect; Merged: Boolean = True); virtual;
+    procedure InvalidateGridRect(const ARect: TKGridRect; Merged: Boolean = True); virtual;
     { Invalidates the entire row specified by ARow if grid updating is not locked
       by @link(TKCustomControl.LockUpdate). }
     procedure InvalidateRow(ARow: Integer); virtual;
@@ -2985,6 +3063,8 @@ type
       call must have a corresponding @link(TKCustomGrid.UnlockSortMode) call, please use a
       try-finally section. }
     procedure LockSortMode; virtual;
+    { Directly modifies the selection given by Index in our selection list.}
+    procedure ModifySelection(Index: Integer; ARect: TKGridRect); virtual;
     { Determines the cell that contains client area coordinates X and Y.
       If there is such a cell, the function returns True and corresponding cell
       indexes are returned in ACol and ARow. Otherwise, the function returns False. }
@@ -3016,19 +3096,19 @@ type
       ensure that all the cells in the grid contain instances of CellClass or those
       inherited from CellClass. All possible cell class properties are copied by
       the @link(TKGridCell.Assign) method. }
-    procedure RealizeCellClass;
+    procedure RealizeCellClass; virtual;
     { Forces the column class specified by @link(TKCustomGrid.ColClass) to replace
       all other column classes that do not inherit from it. Call this method to
       ensure that the entire horizontal grid axis contains instances of ColClass
       or those inherited from ColClass. All possible column class properties are
       copied by the @link(TKGridAxisItem.Assign) method. }
-    procedure RealizeColClass;
+    procedure RealizeColClass; virtual;
     { Forces the row class specified by @link(TKCustomGrid.RowClass) to replace
       all other row classes that do not inherit from it. Call this method to
       ensure that the entire vertical grid axis contains instances of RowClass
       or those inherited from RowClass. All possible row class properties are
       copied by the @link(TKGridAxisItem.Assign) method. }
-    procedure RealizeRowClass;
+    procedure RealizeRowClass; virtual;
     { Determines if a row specified by ARow can be selected,
       i.e. lies in non-fixed area. }
     function RowSelectable(ARow: Integer): Boolean; virtual;
@@ -3047,19 +3127,19 @@ type
       not fully visible. }
     function ScrollNeeded(ACol, ARow: Integer; out DeltaHorz, DeltaVert: Integer): Boolean; virtual;
     { Selects all cells. }
-    procedure SelectAll;
+    procedure SelectAll; virtual;
     { Selects a column. }
-    procedure SelectCol(ACol: Integer);
+    procedure SelectCol(ACol: Integer); virtual;
     { Select more columns. }
-    procedure SelectCols(FirstCol, Count: Integer);
+    procedure SelectCols(FirstCol, Count: Integer); virtual;
     { Normalize current selection. }
-    procedure SelectionNormalize;
+    procedure SelectionNormalize; virtual;
     { Selects a row. }
-    procedure SelectRow(ARow: Integer);
+    procedure SelectRow(ARow: Integer); virtual;
     { Selects more rows. }
-    procedure SelectRows(FirstRow, Count: Integer);
+    procedure SelectRows(FirstRow, Count: Integer); virtual;
     { Forces the cell hint to show on screen. }
-    procedure ShowCellHint;
+    procedure ShowCellHint; virtual;
     { Sorts columns by values of a row if grid sorting mode is not locked
       by @link(TKCustomGrid.LockSortMode). }
     procedure SortCols(ByRow: Integer; SortMode: TKGridSortMode); virtual;
@@ -3166,7 +3246,7 @@ type
       or by setting the @link(TKCustomGrid.RowHeights) property are given the DefaultRowHeight
       as well. When new rows are added to the grid, they are created with
       a height of DefaultRowHeight. }
-    property DefaultRowHeight: Integer read FDefaultRowHeight write SetDefaultRowHeight default cDefaultRowHeightDef;
+    property DefaultRowHeight: Integer read FDefaultRowHeight write SetDefaultRowHeight stored IsDefaultRowHeightStored;
     { Specifies the style how the control is drawn while not enabled. }
     property DisabledDrawStyle: TKGridDisabledDrawStyle read FDisabledDrawStyle write SetDisabledDrawStyle default cDisabledDrawStyleDef;
     { Specifies how a column or row appears while being moved by mouse. }
@@ -3312,18 +3392,20 @@ type
     property ScrollModeVert: TKGridScrollMode read FScrollModeVert write SetScrollModeVert default cScrollModeDef;
     { Specifies how fast the scrolling by timer should be. }
     property ScrollSpeed: Cardinal read FScrollSpeed write SetScrollSpeed default cScrollSpeedDef;
-    { Indicates the boundaries of the current selection. Set Selection to select
+    { Indicates the boundaries of the main selection. Set Selection to select
       a range of cells in the grid. In the TKGridRect structure, the Cell1 parameter
       always denotes base selection cell and Cell2 expanded selection cell.
       A base cell is always the cell that has input focus and can be currently
       edited. An expanded cell denotes the other selection corner. }
     property Selection: TKGridRect read GetSelection write SetSelection;
-    { Returns the current number of selections. Returns always a value greater or equal to 1. }
+    { Returns the current number of selections in our selection list. }
     property SelectionCount: Integer read GetSelectionCount;
-    { Returns the selection rectangle. }
+    { Returns the selection rectangle for main selection. }
     property SelectionRect: TRect read GetSelectionRect;
-    { Gains access to all currently existing selections. }
+    { Gains access to any selection from our selection list. }
     property Selections[Index: Integer]: TKGridRect read GetSelections write SetSelections;
+    { Returns the selection rectangle for given selection index. }
+    property SelectionsRect[Index: Integer]: TRect read GetSelectionsRect;
     { Specifies how a column or row appears while being resized by mouse. }
     property SizingStyle: TKGridSizingStyle read FSizingStyle write SetSizingStyle default cSizingStyleDef;
     { Returns index of the column having its SortMode property smDown or smUp.
@@ -3829,6 +3911,9 @@ procedure ComboSelect(AGrid: TKCustomGrid; AEditor: TComboBox; SelectAll,
   have equal property values. }
 function CompareAxisItems(AxisItems1, AxisItems2: TKGridAxisItems): Boolean;
 
+{ Makes a @link(TKGridRect) record. }
+function CreateEmptyGridRect: TKGridRect;
+
 { Obsolete function. Implements default painting for TKCustomGrid cells.
   Call TKCustomGrid.CellPainter.@link(TKGridCellPainter.DefaultDraw) instead. }
 procedure DefaultDrawCell(AGrid: TKCustomGrid; ACol, ARow: Integer; ARect: TRect;
@@ -3870,9 +3955,9 @@ function GridRect(ACol1, ARow1, ACol2, ARow2: Integer): TKGridRect; overload;
   in GridRect1 equal those in GridRect2. }
 function GridRectEqual(const GridRect1, GridRect2: TKGridRect): Boolean;
 
-{ Makes Cell1 field of GridRect always top-left cell and Cell2 field always
+{ Makes Cell1 field of ARect always top-left cell and Cell2 field always
   bottom-right cell. }
-procedure NormalizeGridRect(var GridRect: TKGridRect);
+procedure NormalizeGridRect(var ARect: TKGridRect);
 
 { Determines if the grid rectangle contains a subset of cells belonging to the
   row specified by ARow. }
@@ -3937,6 +4022,11 @@ begin
         Result := False;
         Exit;
       end;
+end;
+
+function CreateEmptyGridRect: TKGridRect;
+begin
+  Result := GridRect(0,0,0,0);
 end;
 
 procedure DefaultDrawCell(AGrid: TKCustomGrid; ACol, ARow: Integer; ARect: TRect;
@@ -4050,10 +4140,10 @@ begin
   end;
 end;
 
-procedure NormalizeGridRect(var GridRect: TKGridRect);
+procedure NormalizeGridRect(var ARect: TKGridRect);
 begin
-  if GridRect.Col1 > GridRect.Col2 then Exchange(GridRect.Col1, GridRect.Col2);
-  if GridRect.Row1 > GridRect.Row2 then Exchange(GridRect.Row1, GridRect.Row2);
+  if ARect.Col1 > ARect.Col2 then Exchange(ARect.Col1, ARect.Col2);
+  if ARect.Row1 > ARect.Row2 then Exchange(ARect.Row1, ARect.Row2);
 end;
 
 function RowInGridRect(ARow: Integer; const R: TKGridRect): Boolean;
@@ -4068,6 +4158,90 @@ procedure ScrollBarKeyPreview(AGrid: TKCustomGrid; AEditor: TScrollBar;
   ACol, ARow: Integer; var Key: Word; ShiftState: TShiftState; var IsGridKey: Boolean);
 begin
   AGrid.DefaultScrollBarKeyPreview(AEditor, ACol, ARow, Key, ShiftState, IsGridKey);
+end;
+
+{ TKGridRectItem }
+
+constructor TKGridRectItem.Create(AGrid: TKCustomGrid);
+begin
+  FGrid := AGrid;
+  Rect := CreateEmptyGridRect;
+end;
+
+procedure TKGridRectItem.SetRect(const Value: TKGridRect);
+begin
+  if not GridRectEqual(Value, FRect) then
+  begin
+    FGrid.InvalidateGridRect(FRect);
+    FRect := Value;
+    FGrid.InvalidateGridRect(FRect);
+  end;
+end;
+
+{ TKGridRectList }
+
+constructor TKGridRectList.Create(AGrid: TKCustomGrid);
+begin
+  inherited Create;
+  FGrid := AGrid;
+end;
+
+function TKGridRectList.Find(ACol, ARow: Integer): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := 0 to Count - 1 do
+  begin
+    if CellInGridRect(ACol, ARow, Items[I].Rect) then
+    begin
+      Result := I;
+      Break;
+    end;
+  end;
+end;
+
+function TKGridRectList.Find(const ARect: TKGridRect): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := 0 to Count - 1 do
+    if GridRectEqual(Items[I].Rect, ARect) then
+    begin
+      Result := I;
+      Break;
+    end;
+end;
+
+function TKGridRectList.Add(const ARect: TKGridRect): Integer;
+var
+  Item: TKGridRectItem;
+begin
+  Result := Find(ARect);
+  if Result < 0 then
+  begin
+    Item := TKGridRectItem.Create(FGrid);
+    Item.Rect := ARect;
+    Result := inherited Add(Item);
+  end
+end;
+
+function TKGridRectList.GetItem(Index: Integer): TKGridRectItem;
+begin
+  Result := TKGridRectItem(inherited GetItem(Index));
+end;
+
+procedure TKGridRectList.Notify(Ptr: Pointer; Action: TListNotification);
+begin
+  if TObject(Ptr) is TKGridRectItem then
+    FGrid.InvalidateGridRect(TKgridRectItem(Ptr).Rect);
+  inherited;
+end;
+
+procedure TKGridRectList.SetItem(Index: Integer; const Value: TKGridRectItem);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 { TKGridAxisItem }
@@ -5441,7 +5615,8 @@ begin
       else
         Brush.Color := Color;
       Font.Color := FGrid.Colors.FixedCellText;
-    end else if gdSelected in FState then
+    end
+    else if gdSelected in FState then
     begin
       if FPrinting or FGrid.HasFocus then
       begin
@@ -5934,7 +6109,7 @@ begin
   {$IFDEF FPC}
     Details := ThemeServices.GetElementDetails(tmPopupItemHot);
     ThemeServices.DrawElement(FCanvas.Handle, Details, ARect, RClip);
-    Color := clWindowText; // getting text color not supported
+    Color := ColorToRGB(clWindowText); // getting text color not supported
   {$ELSE}
     SelectionTheme := ThemeServices.Theme[teMenu];
     DrawThemeBackground(SelectionTheme, FCanvas.Handle, MENU_POPUPITEM, MPI_HOT, ARect, RClip);
@@ -6166,6 +6341,7 @@ begin
 {$IFDEF FPC}
   FFlat := False;
 {$ENDIF}
+  FActiveSelection := -1;
   FCellHintTimer := TTimer.Create(Self);
   FCellHintTimer.Enabled := False;
   FCellHintTimer.Interval := cMouseCellHintTimeDef;
@@ -6179,7 +6355,7 @@ begin
   FCols := TKGridAxisItems.Create(Self, FColClass);
   FColors := TKGridColors.Create(Self);
   FDefaultColWidth := cDefaultColWidthDef;
-  FDefaultRowHeight := cDefaultRowHeightDef;
+  FDefaultRowHeight := GetDefaultRowHeight;
   FDisabledDrawStyle := cDisabledDrawStyleDef;
   FDragArrow := TKAlphaBitmap.CreateFromRes('KGRID_DRAG_ARROW');
   FDragWindow := nil;
@@ -6190,6 +6366,8 @@ begin
   FEditorTransparency := cEditorTransparencyDef;
   FFixedCols := cInvalidIndex;
   FFixedRows := cInvalidIndex;
+  FOldFontChanged := Font.OnChange;
+  Font.OnChange := FontChange;
   FGridLineWidth := cGridLineWidthDef;
   FGridState := gsNormal;
   FHCI.HBegin := TKAlphaBitmap.CreateFromRes('KGRID_HCI_HBEGIN');
@@ -6198,6 +6376,7 @@ begin
   FHCI.VBegin := TKAlphaBitmap.CreateFromRes('KGRID_HCI_VBEGIN');
   FHCI.VCenter := TKAlphaBitmap.CreateFromRes('KGRID_HCI_VCENTER');
   FHCI.VEnd := TKAlphaBitmap.CreateFromRes('KGRID_HCI_VEND');
+  FInUpdateScrollRange := False;
   FLateUpdating := False;
   FMaxCol := cInvalidIndex;
   FMaxRow := cInvalidIndex;
@@ -6224,7 +6403,7 @@ begin
   FScrollTimer.Interval := FScrollSpeed;
   FScrollTimer.OnTimer := ScrollTimerHandler;
   FScrollPos := CreateEmptyPoint;
-  FSelections := nil;
+  FSelections := TKGridRectList.Create(Self);
   FSizingStyle := cSizingStyleDef;
   FSortStyle := cSortStyleDef;
   FSortModeLock := 0;
@@ -6292,6 +6471,7 @@ begin
   FEditedCell.Free;
   FDragArrow.Free;
   FDragWindow.Free;
+  FSelections.Free;
   FHCI.HBegin.Free;
   FHCI.HCenter.Free;
   FHCI.HEnd.Free;
@@ -6304,15 +6484,20 @@ begin
   FreeData;
 end;
 
+function TKCustomGrid.AddSelection(ARect: TKGridRect): Integer;
+begin
+  Result := FSelections.Add(ARect);
+end;
+
 procedure TKCustomGrid.AdjustPageSetup;
 begin
   inherited;
   PageSetup.PrintingMapped := True;
 end;
 
-function TKCustomGrid.AdjustSelection(const ASelection: TKGridRect): TKGridRect;
+function TKCustomGrid.AdjustSelection(const ARect: TKGridRect): TKGridRect;
 begin
-  Result := ASelection;
+  Result := ARect;
   if goRowSelect in FOptions then
   begin
     // aki:
@@ -6564,6 +6749,8 @@ end;
 function TKCustomGrid.CellSelected(ACol, ARow: Integer): Boolean;
 begin
   Result := CellInGridRect(ACol, ARow, Selection);
+  if not Result then
+    Result := FSelections.Find(ACol, ARow) >= 0;
 end;
 
 function TKCustomGrid.CellToPoint(ACol, ARow: Integer; var Point: TPoint; 
@@ -6779,7 +6966,7 @@ begin
   end;
   if (ColCnt > 0) or (RowCnt > 0) then
   begin
-    if SelectionFix(FSelection) then
+    if FixAllSelections(FSelection) then
       DoSelectionChanged;
     if (FFixedRows <> OldFixedRows) or (FFixedCols <> OldFixedCols) then
       ResetTopLeft;
@@ -6878,6 +7065,11 @@ begin
     UpdateCellSpan;
     InvalidateRow(ARow);
   end;
+end;
+
+procedure TKCustomGrid.ClearSelections;
+begin
+  FSelections.Clear;
 end;
 
 procedure TKCustomGrid.ClearSortMode;
@@ -7335,6 +7527,45 @@ begin
   end;
 end;
 
+procedure TKCustomGrid.DeleteSelection(Index: Integer);
+begin
+  if (Index >= 0) and (Index < FSelections.Count) then
+    FSelections.Delete(Index);
+end;
+
+{$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
+procedure TKCustomGrid.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
+  const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean);
+var
+  I: Integer;
+  C: TKGridCol;
+begin
+  inherited DoAutoAdjustLayout(AMode, AXProportion, AYProportion, AScale0Fonts);
+
+  if AMode in [lapAutoAdjustWithoutHorizontalScrolling, lapAutoAdjustForDPI] then
+  begin
+    LockUpdate;
+    try
+      for I := ColCount - 1 downto 0 do
+      begin
+        C := Cols[I];
+        C.MaxExtent := Round(C.MaxExtent * AXProportion);
+        C.MinExtent := Round(C.MinExtent * AXProportion);
+        C.Extent := Round(C.Extent * AXProportion);
+      end;
+
+      for I := RowCount - 1 downto 0 do
+        RowHeights[I] := Round(RowHeights[I] * AYProportion);
+
+      DefaultColWidth := Round(DefaultColWidth * AXProportion);
+      DefaultRowHeight := Round(DefaultRowHeight * AYProportion);
+    finally
+      UnlockUpdate;
+    end;
+  end;
+end;
+{$IFEND}
+
 function TKCustomGrid.DoMouseWheelDown(Shift: TShiftState; MousePos: TPoint): Boolean;
 var
   Key: Word;
@@ -7746,6 +7977,54 @@ begin
   end;
 end;
 
+function TKCustomGrid.FindSelection(ACol, ARow: Integer): Integer;
+begin
+  Result := FSelections.Find(ACol, ARow);
+end;
+
+function TKCustomGrid.FixAllSelections(var ARect: TKGridRect): Boolean;
+var
+  I: Integer;
+  GR: TKGridRect;
+begin
+  for I := 0 to FSelections.Count - 1 do
+  begin
+    GR := FSelections[I].Rect;
+    FixSelection(GR);
+    FSelections[I].Rect := GR;
+  end;
+  Result := FixSelection(ARect);
+end;
+
+function TKCustomGrid.FixSelection(var ARect: TKGridRect): Boolean;
+var
+  OrigSel: TKGridRect;
+begin
+  OrigSel := ARect;
+  //aki:
+  if (not (gxEditFixedCols in FOptionsEx) and (ARect.Row1 >= FFixedRows)) or (not (gxEditFixedRows in FOptionsEx) and (ARect.Row1 < FFixedRows)) then
+  begin
+    ARect.Col1 := MinMax(ARect.Col1, FFixedCols, FColCount - 1);
+    ARect.Col2 := MinMax(ARect.Col2, FFixedCols, FColCount - 1);
+  end else
+  begin
+    ARect.Col1 := MinMax(ARect.Col1, 0, FColCount - 1);
+    ARect.Col2 := MinMax(ARect.Col2, 0, FColCount - 1);
+  end;
+  if not (gxEditFixedRows in FOptionsEx) then
+  begin
+    ARect.Row1 := MinMax(ARect.Row1, FFixedRows, FRowCount - 1);
+    ARect.Row2 := MinMax(ARect.Row2, FFixedRows, FRowCount - 1);
+  end else
+  begin
+    ARect.Row1 := MinMax(ARect.Row1, 0, FRowCount - 1);
+    ARect.Row2 := MinMax(ARect.Row2, 0, FRowCount - 1);
+  end;
+  if not (goRangeSelect in FOptions) then
+    ARect.Cell2 := ARect.Cell1;
+  Result := not GridRectEqual(ARect, OrigSel);
+end;
+
 procedure TKCustomGrid.FocusCell(ACol, ARow: Integer);
 begin
   if ColValid(ACol) and RowValid(ARow) then
@@ -7753,9 +8032,17 @@ begin
     InternalFindBaseCell(ACol, ARow, ACol, ARow);
     if (Col <> ACol) or (Row <> ARow) then
       CellChanging(Col, Row, ACol, ARow);
-    if SelectionMove(ACol, ARow, ssInit, [sfMustUpdate, sfClampInView]) then
+    if SelectionMove(ACol, ARow, ssInit, [sfMustUpdate, sfClampInView, sfUpdateCurrentSelection]) then
       Click;
   end;
+end;
+
+procedure TKCustomGrid.FontChange(Sender: TObject);
+begin
+  if Assigned(FOldFontChanged) then
+    FOldFontChanged(Sender);
+  if csLoading in ComponentState then
+    DefaultRowHeight := GetDefaultRowHeight;
 end;
 
 procedure TKCustomGrid.FreeData;
@@ -7851,6 +8138,22 @@ begin
       FullVisCells := Min(FullVisCells, TotalCellCount);
     end;
   end;
+end;
+
+function TKCustomGrid.GetDefaultRowHeight: Integer;
+var
+  DC: HDC;
+begin
+  DC := GetDC(0);
+  try
+    SelectObject(DC, Font.Handle);
+    Result := GetFontHeight(DC);
+  finally
+    ReleaseDC(0, DC);
+  end;
+  if Result <= 0 then
+    Result := cDefaultRowHeightDef;
+  Inc(Result, 7); // include some padding
 end;
 
 function TKCustomGrid.GetAxisInfoBoth(Mask: TKGridAxisInfoMask): TKGridAxisInfoBoth;
@@ -8231,6 +8534,29 @@ begin
   Result := True;
 end;
 
+function TKCustomGrid.InternalGetSelectionRect(const ARect: TKGridRect): TRect;
+begin
+  Result := CreateEmptyRect;
+  if GridRectToRect(ARect, Result, False, goRangeSelect in FOptions) then
+  begin
+    if FOptions * [goFixedHorzLine, goHorzLine] = [goFixedHorzLine, goHorzLine] then
+      Dec(Result.Bottom, GetEffectiveRowSpacing(Max(ARect.Row1, ARect.Row2)));
+    if FOptions * [goFixedVertLine, goVertLine] = [goFixedVertLine, goVertLine] then
+      Dec(Result.Right, GetEffectiveColSpacing(Max(ARect.Col1, ARect.Col2)));
+  end;
+end;
+
+function TKCustomGrid.InternalGetSelectionsRect(ACol, ARow: Integer): TRect;
+var
+  SelectionIndex: Integer;
+begin
+  SelectionIndex := FindSelection(ACol, ARow);
+  if SelectionIndex >= 0 then
+    Result := SelectionsRect[SelectionIndex]
+  else
+    Result := SelectionRect;
+end;
+
 function TKCustomGrid.GetSelection: TKGridRect;
 begin
   Result := AdjustSelection(FSelection);
@@ -8238,29 +8564,28 @@ end;
 
 function TKCustomGrid.GetSelectionCount: Integer;
 begin
-  Result := Length(FSelections) + 1;
+  Result := FSelections.Count;
 end;
 
 function TKCustomGrid.GetSelectionRect: TRect;
 begin
-  Result := CreateEmptyRect;
-  if GridRectToRect(Selection, Result, False, goRangeSelect in FOptions) then
-  begin
-    if FOptions * [goFixedHorzLine, goHorzLine] = [goFixedHorzLine, goHorzLine] then
-      Dec(Result.Bottom, GetEffectiveRowSpacing(Max(Selection.Row1, Selection.Row2)));
-    if FOptions * [goFixedVertLine, goVertLine] = [goFixedVertLine, goVertLine] then
-      Dec(Result.Right, GetEffectiveColSpacing(Max(Selection.Col1, Selection.Col2)));
-  end;
+  Result := InternalGetSelectionRect(Selection);
 end;
 
 function TKCustomGrid.GetSelections(Index: Integer): TKGridRect;
 begin
-  if Index = 0 then
-    Result := Selection
-  else if (Index > 0) and (Index < SelectionCount) then
-    Result := FSelections[Index - 1]
+  if (Index >= 0) and (Index < SelectionCount) then
+    Result := FSelections[Index].Rect
   else
-    Result := GridRect(0,0,0,0);
+    Result := CreateEmptyGridRect;
+end;
+
+function TKCustomGrid.GetSelectionsRect(Index: Integer): TRect;
+begin
+  if (Index >= 0) and (Index < SelectionCount) then
+    Result := InternalGetSelectionRect(FSelections[Index].Rect)
+  else
+    Result := CreateEmptyRect;
 end;
 
 function TKCustomGrid.GetSortCol: Integer;
@@ -8332,13 +8657,13 @@ begin
   EditorMode := True;
 end;
 
-function TKCustomGrid.GridRectSelectable(const GridRect: TKGridRect): Boolean;
+function TKCustomGrid.GridRectSelectable(const ARect: TKGridRect): Boolean;
 begin
-  Result := ColSelectable(GridRect.Col1) and ColSelectable(GridRect.Col2) and
-    RowSelectable(GridRect.Row1) and RowSelectable(GridRect.Row2);
+  Result := ColSelectable(ARect.Col1) and ColSelectable(ARect.Col2) and
+    RowSelectable(ARect.Row1) and RowSelectable(ARect.Row2);
 end;
 
-function TKCustomGrid.GridRectToRect(GridRect: TKGridRect; var R: TRect;
+function TKCustomGrid.GridRectToRect(ARect: TKGridRect; var R: TRect;
   VisibleOnly: Boolean; Merged: Boolean): Boolean;
 
   function Axis(const Info: TKGridAxisInfo; var Index1, Index2: Integer; Split: Boolean): Boolean;
@@ -8393,30 +8718,30 @@ var
   Info: TKGridAxisInfoBoth;
 begin
   Result := False;
-  NormalizeGridRect(GridRect);
-  if GridRectValid(GridRect) then
+  NormalizeGridRect(ARect);
+  if GridRectValid(ARect) then
   begin
     Info := GetAxisInfoBoth([]);
     if Merged then
-      GridRect := InternalExpandGridRect(GridRect);
+      ARect := InternalExpandGridRect(ARect);
     // aki:
-    if Axis(Info.Horz, GridRect.Col1, GridRect.Col2, not (gxEditFixedCols in FOptionsEx)) and
-      Axis(Info.Vert, GridRect.Row1, GridRect.Row2, not (gxEditFixedRows in FOptionsEx)) then
+    if Axis(Info.Horz, ARect.Col1, ARect.Col2, not (gxEditFixedCols in FOptionsEx)) and
+      Axis(Info.Vert, ARect.Row1, ARect.Row2, not (gxEditFixedRows in FOptionsEx)) then
     begin
-      if CellToPoint(GridRect.Col1, GridRect.Row1, R.TopLeft, VisibleOnly) then
+      if CellToPoint(ARect.Col1, ARect.Row1, R.TopLeft, VisibleOnly) then
       begin
-        Axis1(Info.Horz, GridRect.Col1, GridRect.Col2, R.Left, R.Right);
-        Axis1(Info.Vert, GridRect.Row1, GridRect.Row2, R.Top, R.Bottom);
+        Axis1(Info.Horz, ARect.Col1, ARect.Col2, R.Left, R.Right);
+        Axis1(Info.Vert, ARect.Row1, ARect.Row2, R.Top, R.Bottom);
         Result := (R.Right > R.Left) and (R.Bottom > R.Top);
       end;
     end;
   end;
 end;
 
-function TKCustomGrid.GridRectValid(const GridRect: TKGridRect): Boolean;
+function TKCustomGrid.GridRectValid(const ARect: TKGridRect): Boolean;
 begin
-  Result := ColValid(GridRect.Col1) and ColValid(GridRect.Col2) and
-    RowValid(GridRect.Row1) and RowValid(GridRect.Row2);
+  Result := ColValid(ARect.Col1) and ColValid(ARect.Col2) and
+    RowValid(ARect.Row1) and RowValid(ARect.Row2);
 end;
 
 function TKCustomGrid.GridStateToInvisibleCells: TKGridInvisibleCells;
@@ -8612,6 +8937,7 @@ begin
     FSelection.Col1 := Index1;
   FSelection.Col2 := FSelection.Col1;
   FEditorCell.Col := FSelection.Col1;
+  ClearSelections;
 end;
 
 procedure TKCustomGrid.InternalExchangeRows(Index1, Index2: Integer);
@@ -8639,16 +8965,17 @@ begin
     FSelection.Row1 := Index1;
   FSelection.Row2 := FSelection.Row1;
   FEditorCell.Row := FSelection.Row1;
+  ClearSelections;
 end;
 
-function TKCustomGrid.InternalExpandGridRect(const GridRect: TKGridRect): TKGridRect;
+function TKCustomGrid.InternalExpandGridRect(const ARect: TKGridRect): TKGridRect;
 var
   I, J, MyCol, MyRow: Integer;
   Span: TKGridCellSpan;
 begin
-  Result := GridRect;
-  for I := GridRect.Col1 to GridRect.Col2 do
-    for J := GridRect.Row1 to GridRect.Row2 do
+  Result := ARect;
+  for I := ARect.Col1 to ARect.Col2 do
+    for J := ARect.Row1 to ARect.Row2 do
     begin
       InternalFindBaseCell(I, J, MyCol, MyRow);
       Span := InternalGetCellSpan(MyCol, MyRow);
@@ -9379,7 +9706,7 @@ begin
   ColCount := Max(ColCount, Value + 1);
   FFixedCols := Value;
   ResetTopLeft;
-  if SelectionFix(FSelection) then
+  if FixAllSelections(FSelection) then
     DoSelectionChanged;
   UpdateAxes(True, cAll, False, cAll, []);
 end;
@@ -9389,7 +9716,7 @@ begin
   RowCount := Max(RowCount, Value + 1);
   FFixedRows := Value;
   ResetTopLeft;
-  if SelectionFix(FSelection) then
+  if FixAllSelections(FSelection) then
     DoSelectionChanged;
   UpdateAxes(False, cAll, True, cAll, []);
 end;
@@ -9400,6 +9727,58 @@ begin
     ChangeDataSize(False, 0, 0, True, FRowCount, Value - FRowCount)
   else if Value < FRowCount then
     ChangeDataSize(False, 0, 0, False, Value, FRowCount - Value);
+end;
+
+procedure TKCustomGrid.InternalSetSelection(NewSelection: TKGridRect;
+  Flags: TKGridSelectionFlags);
+var
+  ICol, IRow: Integer;
+begin
+  FixAllSelections(NewSelection);
+  if FRangeSelectStyle in [rsMS_Excel, rsMultiSelectMS_Excel] then
+  begin
+    ICol := NewSelection.Col2;
+    IRow := NewSelection.Row2;
+  end else
+  begin
+    ICol := NewSelection.Col1;
+    IRow := NewSelection.Row1;
+  end;
+  if (sfMustUpdate in Flags) and not GridRectEqual(FSelection, NewSelection) then
+  begin
+    if not (goAlwaysShowEditor in FOptions) then
+      FlagClear(cGF_EditorModeActive);
+    InvalidateCurrentSelection;
+    FSelection := NewSelection;
+    if not (sfClampInView in Flags) or not ClampInView(ICol, IRow) then
+      InvalidateCurrentSelection;
+  end else
+    FSelection := NewSelection;
+
+  DoSelectionChanged;
+  InvalidatePageSetup;
+  if not (sfNoMemPos in Flags) then
+  begin
+    FMemCol := ICol;
+    FMemRow := IRow;
+  end;
+  if sfMustUpdate in Flags then
+    UpdateEditor(Flag(cGF_EditorModeActive));
+end;
+
+function TKCustomGrid.InternalCheckAndSetSelection(const NewSelection: TKGridRect): Boolean;
+begin
+  Result := False;
+  if not GridRectEqual(FSelection, NewSelection) then
+  begin
+    if ((FSelection.Col1 <> NewSelection.Col1) or (FSelection.Row1 <> NewSelection.Row1)
+      and SelectCell(NewSelection.Col1, NewSelection.Row1)) or
+      ((FSelection.Col2 <> NewSelection.Col2) or (FSelection.Row2 <> NewSelection.Row2)
+      and SelectionExpand(NewSelection.Col2, NewSelection.Row2)) then
+      Result := True;
+  end;
+  if Result then
+    InternalSetSelection(NewSelection, [sfMustUpdate, sfClampInView]);
 end;
 
 function TKCustomGrid.InternalUpdateVirtualGrid: Boolean;
@@ -9486,11 +9865,11 @@ begin
     FEditor.Invalidate;
 end;
 
-procedure TKCustomGrid.InvalidateGridRect(const GR: TKGridRect; Merged: Boolean);
+procedure TKCustomGrid.InvalidateGridRect(const ARect: TKGridRect; Merged: Boolean);
 var
   R: TRect;
 begin
-  if UpdateUnlocked and HandleAllocated and GridRectToRect(GR, R, True, Merged) then
+  if UpdateUnlocked and HandleAllocated and GridRectToRect(ARect, R, True, Merged) then
     InvalidateRect(Handle, @R, False);
 end;
 
@@ -9588,6 +9967,11 @@ begin
   Result := goThemes in FOptions;
 end;
 
+function TKCustomGrid.IsDefaultRowHeightStored: Boolean;
+begin
+  Result := FDefaultRowHeight <> GetDefaultRowHeight;
+end;
+
 procedure TKCustomGrid.KeyDown(var Key: Word; Shift: TShiftState);
 var
   ACol, ARow, ATopRow, SelCol, SelRow: Integer;
@@ -9601,7 +9985,7 @@ begin
   if ssShift in Shift then
   begin
     Stage := ssExpand;
-    if (goRangeSelect in FOptions) and (FRangeSelectStyle = rsMS_Excel) then
+    if (goRangeSelect in FOptions) and (FRangeSelectStyle in [rsMS_Excel, rsMultiSelectMS_Excel]) then
     begin
       SelCol := FSelection.Col2;
       SelRow := FSelection.Row2;
@@ -9700,8 +10084,10 @@ begin
   end;
   if (ACol <> SelCol) or (ARow <> SelRow) then
   begin
+    if Stage = ssInit then
+      ClearSelections;
     CellChanging(SelCol, SelRow, ACol, ARow);
-    if SelectionMove(ACol, ARow, Stage, [sfMustUpdate, sfClampInView, sfDontCallSelectCell, sfNoMemPos]) then
+    if SelectionMove(ACol, ARow, Stage, [sfMustUpdate, sfClampInView, sfDontCallSelectCell, sfNoMemPos, sfUpdateCurrentSelection]) then
     begin
       Click;
       if not (goAlwaysShowEditor in FOptions) then
@@ -9738,6 +10124,7 @@ begin
           InvalidateCurrentSelection;
           SafeSetFocus;
         end;
+        KM_SCROLL: UpdateScrollRange(True, True, True);
       end;
     finally
       FLateUpdating := False;
@@ -9832,6 +10219,12 @@ begin
     Scale := APageSetup.MappedControlPaintAreaWidth / Info.OutlineWidth;
   Axis(GetAxisInfoVert([]), Round(APageSetup.MappedPaintAreaHeight / Scale), R.Row1, R.Row2,
     SelOnly, False, Info.ControlVertPageCount, Info.OutlineHeight);
+end;
+
+procedure TKCustomGrid.ModifySelection(Index: Integer; ARect: TKGridRect);
+begin
+  if (Index >= 0) and (Index < FSelections.Count) then
+    FSelections[Index].Rect := ARect;
 end;
 
 procedure TKCustomGrid.MouseCellHint(ACol, ARow: Integer; AShow: Boolean);
@@ -9949,10 +10342,19 @@ begin
         try
           if (Col <> BaseCol) or (Row <> BaseRow) then
             CellChanging(Col, Row, BaseCol, BaseRow);
-          if SelectionMove(BaseCol, BaseRow, ssInit, [sfMustUpdate, sfClampInView]) then
+          if ssShift in Shift then
           begin
-            FGridState := gsSelecting;
-            EditorMode := (goAlwaysShowEditor in FOptions) or (ssDouble in Shift);
+            if SelectionMove(BaseCol, BaseRow, ssExpand, [sfMustUpdate, sfClampInView]) then
+              FGridState := gsSelecting;
+          end else
+          begin
+            if not (ssCtrl in Shift) then
+              ClearSelections;
+            if SelectionMove(BaseCol, BaseRow, ssInit, [sfMustUpdate, sfClampInView]) then
+            begin
+              FGridState := gsSelecting;
+              EditorMode := (goAlwaysShowEditor in FOptions) or (ssDouble in Shift);
+            end;
           end;
         finally
           FlagClear(cGF_SelectedByMouse);
@@ -10066,7 +10468,7 @@ begin
             InternalFindBaseCell(SelCol, SelRow, SelCol, SelRow);
             if (Col <> SelCol) or (Row <> SelRow) then
               CellChanging(Col, Row, SelCol, SelRow);
-            SelectionMove(SelCol, SelRow, ssExpand, [sfMustUpdate])
+            SelectionMove(SelCol, SelRow, ssExpand, [sfMustUpdate]);
           end else
             DragMove(HitCol, HitRow, MousePt);
         end;
@@ -10278,7 +10680,7 @@ begin
     else
       for I := ToIndex to FromIndex do
         InternalExchangeCols(I, FromIndex);
-    if SelectionFix(FSelection) then
+    if FixAllSelections(FSelection) then
       DoSelectionChanged;
     UpdateAxes(True, cAll, False, cAll, []);
     UpdateCellSpan;
@@ -10300,7 +10702,7 @@ begin
     else
       for I := ToIndex to FromIndex do
         InternalExchangeRows(I, FromIndex);
-    if SelectionFix(FSelection) then
+    if FixAllSelections(FSelection) then
       DoSelectionChanged;
     UpdateAxes(False, cAll, True, cAll, []);
     UpdateCellSpan;
@@ -10318,7 +10720,7 @@ begin
   InternalMove(ACol, ARow, DirectionToCommand(FMoveDirection), True, False);
   if (Col <> ACol) or (Row <> ARow) then
     CellChanging(Col, Row, ACol, ARow);
-  if SelectionMove(ACol, ARow, ssInit, [sfMustUpdate, sfClampInView, sfDontCallSelectCell]) then
+  if SelectionMove(ACol, ARow, ssInit, [sfMustUpdate, sfClampInView, sfDontCallSelectCell, sfUpdateCurrentSelection]) then
     Click;
 end;
 
@@ -10382,7 +10784,7 @@ begin
         if ABlockRect <> nil then
           TmpBlockRect :=  ABlockRect^
         else
-          TmpBlockRect := SelectionRect;
+          TmpBlockRect := InternalGetSelectionsRect(ACol, ARow);
         if CellBitmap <> nil then
           KFunctions.OffsetRect(TmpBlockRect, -R.Left, -R.Top);
         if (ACanvas = nil) or (ACanvas = Canvas) then
@@ -10410,8 +10812,7 @@ begin
 end;
 
 function TKCustomGrid.PaintCells(ACanvas: TCanvas; CellBitmap: TKAlphaBitmap; MainClipRgn: HRGN;
-  FirstCol, LastCol, FirstRow, LastRow, X, Y, MaxX, MaxY: Integer; Printing, PaintSelection: Boolean;
-  const ABlockRect: TRect): TPoint;
+  FirstCol, LastCol, FirstRow, LastRow, X, Y, MaxX, MaxY: Integer; Printing, PaintSelection: Boolean): TPoint;
 var
   I, J, I1, J1, XBack, YBack,
   CHExtent, CHSpacing, CVExtent, CVSpacing,
@@ -10536,7 +10937,7 @@ begin
               end else
                 CellRect.Right := BorderRect.Right;
             end;
-            TmpBlockRect := ABlockRect;
+            TmpBlockRect := InternalGetSelectionsRect(J, I);
             if CellBitmap <> nil then
             begin
               TmpRect := Rect(0, 0, CellRect.Right - CellRect.Left, CellRect.Bottom - CellRect.Top);
@@ -10772,7 +11173,6 @@ var
   MainClipRgn: HRGN;
   R: TKGridRect;
   APageSetup: TKPrintPageSetup;
-//  CellBitmap: TBitmap;
 begin
   R := InternalExpandGridRect(Selection);
   NormalizeGridRect(R);
@@ -10798,20 +11198,15 @@ begin
   Exclude(FOptions, goThemedCells);
 {$ENDIF}
   MainClipRgn := CreateRectRgnIndirect(TmpRect);
-//  if goDoubleBufferedCells in FOptions then
-//    CellBitmap := TBitmap.Create
-//  else
-//    CellBitmap := nil;
   try
     SelectClipRgn(APageSetup.Canvas.Handle, MainClipRgn);
     TmpRect := SelectionRect;
     if SelOnly then
       KFunctions.OffsetRect(TmpRect, -TmpRect.Left, -TmpRect.Top);
     PaintCells(PageSetup.Canvas, nil, MainClipRgn, FirstCol, LastCol, FirstRow, LastRow,
-      0, 0, OutlineWidth, OutlineHeight, True, poPaintSelection in APageSetup.Options, TmpRect);
+      0, 0, OutlineWidth, OutlineHeight, True, poPaintSelection in APageSetup.Options);
   finally
     DeleteObject(MainClipRgn);
-//    CellBitmap.Free;
   {$IFDEF LCLQT}
     if AThemedCells then
       Include(FOptions, goThemedCells);
@@ -10875,7 +11270,6 @@ var
   DC: HDC;
   CellBitmap: TKAlphaBitmap;
   Info: TKGridAxisInfoBoth;
-  TmpBlockRect: TRect;
 begin
   DC := ACanvas.Handle;
   SaveIndex := SaveDC(DC); // don't delete
@@ -10897,7 +11291,6 @@ begin
       CellBitmap := nil;
     MainClipRgn := CreateEmptyRgn;
     try
-      TmpBlockRect := SelectionRect;
       if GetClipRgn(DC, MainClipRgn) <> 1 then
       begin
         DeleteObject(MainClipRgn);
@@ -10915,7 +11308,7 @@ begin
           if ExtSelectClipRectEx(DC, TmpRect, RGN_AND, CurClipRgn, MainClipRgn) then
           begin
             TmpExtent := PaintCells(ACanvas, CellBitmap, CurClipRgn, FTopLeft.Col, FColCount - 1, FTopLeft.Row, FRowCount - 1,
-              Info.Horz.FixedBoundary - FScrollOffset.X, Info.Vert.FixedBoundary - FScrollOffset.Y, ClientW, ClientH, False, True, TmpBlockRect);
+              Info.Horz.FixedBoundary - FScrollOffset.X, Info.Vert.FixedBoundary - FScrollOffset.Y, ClientW, ClientH, False, True);
           end;
         finally
           DeleteObject(CurClipRgn);
@@ -10931,7 +11324,7 @@ begin
           TranslateRectToDevice(DC, TmpRect);
           if ExtSelectClipRectEx(DC, TmpRect, RGN_AND, CurClipRgn, MainClipRgn) then
             TmpExtent := PaintCells(ACanvas, CellBitmap, CurClipRgn, FTopLeft.Col, FColCount - 1, 0, FFixedRows - 1,
-              Info.Horz.FixedBoundary - FScrollOffset.X, 0, ClientW, ClientH, False, True, TmpBlockRect);
+              Info.Horz.FixedBoundary - FScrollOffset.X, 0, ClientW, ClientH, False, True);
         finally
           DeleteObject(CurClipRgn);
         end;
@@ -10946,7 +11339,7 @@ begin
           TranslateRectToDevice(DC, TmpRect);
           if ExtSelectClipRectEx(DC, TmpRect, RGN_AND, CurClipRgn, MainClipRgn) then
             TmpExtent := PaintCells(ACanvas, CellBitmap, CurClipRgn, 0, FFixedCols - 1, FTopLeft.Row, FRowCount - 1, 0,
-              Info.Vert.FixedBoundary - FScrollOffset.Y, ClientW, ClientH, False, True, TmpBlockRect);
+              Info.Vert.FixedBoundary - FScrollOffset.Y, ClientW, ClientH, False, True);
         finally
           DeleteObject(CurClipRgn);
         end;
@@ -10961,7 +11354,7 @@ begin
           TranslateRectToDevice(DC, TmpRect);
           if ExtSelectClipRectEx(DC, TmpRect, RGN_AND, CurClipRgn, MainClipRgn) then
             TmpExtent := PaintCells(ACanvas, CellBitmap, CurClipRgn, 0, FFixedCols - 1, 0, FFixedRows - 1,
-            0, 0, ClientW, ClientH, False, True, TmpBlockRect);
+            0, 0, ClientW, ClientH, False, True);
         finally
           DeleteObject(CurClipRgn);
         end;
@@ -10978,7 +11371,7 @@ begin
       // to ensure coming DrawFocusRect will be painted correctly:
       SetBkColor(DC, $FFFFFF);
       SetTextColor(DC, 0);
-      ACanvas.DrawFocusRect(TmpBlockRect);
+      ACanvas.DrawFocusRect(SelectionRect);
     end;
     // default color for client area parts not consumed by cells
     ACanvas.Brush.Style := bsSolid;
@@ -11342,26 +11735,34 @@ end;
 
 procedure TKCustomGrid.ReadColWidths(Reader: TReader);
 var
-  I: Integer;
+  I, Tmp: Integer;
 begin
   with Reader do
   begin
     ReadListBegin;
     for I := 0 to FColCount - 1 do
-      ColWidths[I] := ReadInteger;
+    begin
+      Tmp := ReadInteger;
+      if Tmp > 0 then
+        ColWidths[I] := Tmp;
+    end;
     ReadListEnd;
   end;
 end;
 
 procedure TKCustomGrid.ReadRowHeights(Reader: TReader);
 var
-  I: Integer;
+  I, Tmp: Integer;
 begin
   with Reader do
   begin
     ReadListBegin;
     for I := 0 to FRowCount - 1 do
-      RowHeights[I] := ReadInteger;
+    begin
+      Tmp := ReadInteger;
+      if Tmp > 0 then
+        RowHeights[I] := Tmp;
+    end;
     ReadListEnd;
   end;
 end;
@@ -11480,35 +11881,32 @@ procedure TKCustomGrid.Scroll(CodeHorz, CodeVert, DeltaHorz, DeltaVert: Integer;
       SI.cbSize := SizeOf(TScrollInfo);
       SI.fMask := SIF_PAGE or SIF_RANGE or SIF_TRACKPOS;
       GetScrollInfo(Handle, Code, SI);
-    {$IF DEFINED(LCLGTK2)}
-      {.$WARNING "scrollbar arrows still not working properly on GTK2 in some cases!"}
+    {$IFDEF UNIX}
       SI.nTrackPos := Delta;
-    {$IFEND}
+    {$ENDIF}
     end;
     OldScrollPos := ScrollPos;
     OldScrollOffset := ScrollOffset;
-    if ScrollCode = Cardinal(cScrollDelta) then
-      DoScroll(Delta) // in Pixels!
-    else if HasScrollBar then
-      case ScrollCode of
-        SB_TOP:
-        begin
-          FirstGridCell := Info.FixedCellCount;
-          ScrollPos := SI.nMin;
-          ScrollOffset := 0;
-        end;
-        SB_BOTTOM:
-        begin
-          FirstGridCell := Info.FirstGridCellExtent;
-          ScrollPos := SI.nMax - Max(SI.nPage - 1, 0);
-          ScrollOffset := 0;
-        end;
-        SB_LINEUP: DoScroll(ScrollDeltaFromDelta(Info, -1));
-        SB_LINEDOWN: DoScroll(ScrollDeltaFromDelta(Info, 1));
-        SB_PAGEUP: DoScroll(-SI.nPage);
-        SB_PAGEDOWN: DoScroll(SI.nPage);
-        SB_THUMBTRACK, SB_THUMBPOSITION: DoScroll(SI.nTrackPos - ScrollPos, True);
+    case ScrollCode of
+      SB_TOP:
+      begin
+        FirstGridCell := Info.FixedCellCount;
+        ScrollPos := SI.nMin;
+        ScrollOffset := 0;
       end;
+      SB_BOTTOM:
+      begin
+        FirstGridCell := Info.FirstGridCellExtent;
+        ScrollPos := SI.nMax - Max(SI.nPage - 1, 0);
+        ScrollOffset := 0;
+      end;
+      SB_LINEUP: DoScroll(ScrollDeltaFromDelta(Info, -1));
+      SB_LINEDOWN: DoScroll(ScrollDeltaFromDelta(Info, 1));
+      SB_PAGEUP: DoScroll(-SI.nPage);
+      SB_PAGEDOWN: DoScroll(SI.nPage);
+      SB_THUMBTRACK, SB_THUMBPOSITION: DoScroll(SI.nTrackPos - ScrollPos, True);
+      Cardinal(cScrollDelta): DoScroll(Delta) // in Pixels!
+    end;
     FirstGridCell := MinMax(FirstGridCell, Info.FixedCellCount, Info.FirstGridCellExtent);
     if (ScrollPos <> OldScrollPos) or (ScrollOffset <> OldScrollOffset) then
     begin
@@ -11719,43 +12117,6 @@ begin
     Selection := GridRect(FirstCol, FirstRow, FirstCol + Count, FRowCount - 1);
 end;
 
-procedure TKCustomGrid.SelectionChanged(NewSelection: TKGridRect;
-  Flags: TKGridSelectionFlags);
-var
-  ICol, IRow: Integer;
-begin
-  SelectionFix(NewSelection);
-  if FRangeSelectStyle = rsMS_Excel then
-  begin
-    ICol := NewSelection.Col2;
-    IRow := NewSelection.Row2;
-  end else
-  begin
-    ICol := NewSelection.Col1;
-    IRow := NewSelection.Row1;
-  end;
-  if (sfMustUpdate in Flags) and not GridRectEqual(FSelection, NewSelection) then
-  begin
-    if not (goAlwaysShowEditor in FOptions) then
-      FlagClear(cGF_EditorModeActive);
-    InvalidateCurrentSelection;
-    FSelection := NewSelection;
-    if not (sfClampInView in Flags) or not ClampInView(ICol, IRow) then
-      InvalidateCurrentSelection;
-  end else
-    FSelection := NewSelection;
-
-  DoSelectionChanged;
-  InvalidatePageSetup;
-  if not (sfNoMemPos in Flags) then
-  begin
-    FMemCol := ICol;
-    FMemRow := IRow;
-  end;
-  if sfMustUpdate in Flags then
-    UpdateEditor(Flag(cGF_EditorModeActive));
-end;
-
 function TKCustomGrid.SelectionExpand(ACol, ARow: Integer): Boolean;
 begin
   Result := True;
@@ -11763,35 +12124,6 @@ begin
     FOnSelectionExpand(Self, ACol, ARow, Result)
   else if Assigned(FCells) then
     InternalGetCell(ACol, ARow).SelectionExpand(ACol, ARow, Result);
-end;
-
-function TKCustomGrid.SelectionFix(var Sel: TKGridRect): Boolean;
-var
-  OrigSel: TKGridRect;
-begin
-  OrigSel := Sel;
-  //aki:
-  if (not (gxEditFixedCols in FOptionsEx) and (Sel.Row1 >= FFixedRows)) or (not (gxEditFixedRows in FOptionsEx) and (Sel.Row1 < FFixedRows)) then
-  begin
-    Sel.Col1 := MinMax(Sel.Col1, FFixedCols, FColCount - 1);
-    Sel.Col2 := MinMax(Sel.Col2, FFixedCols, FColCount - 1);
-  end else
-  begin
-    Sel.Col1 := MinMax(Sel.Col1, 0, FColCount - 1);
-    Sel.Col2 := MinMax(Sel.Col2, 0, FColCount - 1);
-  end;
-  if not (gxEditFixedRows in FOptionsEx) then
-  begin
-    Sel.Row1 := MinMax(Sel.Row1, FFixedRows, FRowCount - 1);
-    Sel.Row2 := MinMax(Sel.Row2, FFixedRows, FRowCount - 1);
-  end else
-  begin
-    Sel.Row1 := MinMax(Sel.Row1, 0, FRowCount - 1);
-    Sel.Row2 := MinMax(Sel.Row2, 0, FRowCount - 1);
-  end;
-  if not (goRangeSelect in FOptions) then
-    Sel.Cell2 := Sel.Cell1;
-  Result := not GridRectEqual(Sel, OrigSel);
 end;
 
 function TKCustomGrid.SelectionMove(ACol, ARow: Integer;
@@ -11814,7 +12146,7 @@ begin
     ssExpand:
     begin
       NewSelection := FSelection;
-      if FRangeSelectStyle = rsMS_Excel then
+      if FRangeSelectStyle in [rsMS_Excel, rsMultiSelectMS_Excel] then
       begin
         NewSelection.Cell2 := GridPoint(ACol, ARow);
         if not GridRectEqual(FSelection, NewSelection) and
@@ -11830,7 +12162,22 @@ begin
     end;
   end;
   if Result then
-    SelectionChanged(NewSelection, Flags);
+  begin
+    InternalSetSelection(NewSelection, Flags);
+    if (FRangeSelectStyle in [rsMultiSelect, rsMultiSelectMS_Excel]) then
+    begin
+      if (Stage = ssExpand) or (sfUpdateCurrentSelection in Flags) then
+      begin
+        // modify current selection
+        ModifySelection(FActiveSelection, Selection);
+      end;
+      begin
+        // add the new selection to our selection list,
+        // the selection list contains all selections inclusive main selection
+        FActiveSelection := AddSelection(Selection);
+      end;
+    end;
+  end;
   if not Result and GridRectEqual(NewSelection, FSelection) then
     Result := True;
 end;
@@ -11842,23 +12189,6 @@ begin
   R := Selection;
   NormalizeGridRect(R);
   Selection := R;
-end;
-
-function TKCustomGrid.SelectionSet(const NewSelection: TKGridRect): Boolean;
-begin
-  Result := False;
-  if not GridRectEqual(FSelection, NewSelection) then
-  begin
-    if ((FSelection.Col1 <> NewSelection.Col1) or (FSelection.Row1 <> NewSelection.Row1)
-      and SelectCell(NewSelection.Col1, NewSelection.Row1)) or
-      ((FSelection.Col2 <> NewSelection.Col2) or (FSelection.Row2 <> NewSelection.Row2)
-      and SelectionExpand(NewSelection.Col2, NewSelection.Row2)) then
-      Result := True;
-  end;
-  if Result then
-    SelectionChanged(NewSelection, [sfMustUpdate, sfClampInView]);
-//  if not Result and GridRectEqual(NewSelection, FSelection) then
-//    Result := True;
 end;
 
 procedure TKCustomGrid.SelectRow(ARow: Integer);
@@ -12259,7 +12589,7 @@ begin
     FOptions := Value;
     if UpdateSelection then
     begin
-      if SelectionFix(FSelection) then
+      if FixAllSelections(FSelection) then
         DoSelectionChanged;
     end;
     if UpdateCols or UpdateRows then
@@ -12396,15 +12726,23 @@ begin
   begin
     InternalFindBaseCell(Value.Col1, Value.Row1, G.Col1, G.Row1);
     InternalFindBaseCell(Value.Col2, Value.Row2, G.Col2, G.Row2);
-    SelectionSet(G);
+    InternalCheckAndSetSelection(G);
   end;
 end;
 
 procedure TKCustomGrid.SetSelections(Index: Integer; const Value: TKGridRect);
+var
+  G: TKGridRect;
 begin
   if (Index >= 0) and (Index < SelectionCount) then
   begin
-    //TODO!
+    if GridRectSelectable(Value) and not GridRectEqual(Value, FSelections[Index].Rect) then
+    begin
+      InternalFindBaseCell(Value.Col1, Value.Row1, G.Col1, G.Row1);
+      InternalFindBaseCell(Value.Col2, Value.Row2, G.Col2, G.Row2);
+      FSelections[Index].Rect := G;
+      Invalidate;
+    end;
   end;
 end;
 
@@ -13074,6 +13412,7 @@ procedure TKCustomGrid.UpdateScrollRange(Horz, Vert, UpdateNeeded: Boolean);
     I, CellExtent, MaxExtent, PageExtent, ScrollExtent: Integer;
     CheckFirstGridCell: Boolean;
     SI: TScrollInfo;
+    SBVisible: Boolean;
   begin
     Result := False;
     CheckFirstGridCell := True;
@@ -13117,18 +13456,22 @@ procedure TKCustomGrid.UpdateScrollRange(Horz, Vert, UpdateNeeded: Boolean);
     if HandleAllocated then
       if HasScrollBar then
       begin
-        FillChar(SI, SizeOf(TScrollInfo), 0);
-        SI.cbSize := SizeOf(TScrollInfo);
-        SI.fMask := SIF_RANGE or SIF_PAGE or SIF_POS {$IFDEF UNIX}or SIF_UPDATEPOLICY{$ENDIF};
-        SI.nMin := 0;
-        SI.nMax := ScrollExtent {$IFNDEF FPC}- 1{$ENDIF};
-        SI.nPos := ScrollPos + ScrollOffset;
-        SI.nPage := PageExtent;
-      {$IFDEF UNIX}
-        SI.ntrackPos := SB_POLICY_CONTINUOUS;
-      {$ENDIF}
-        SetScrollInfo(Handle, Code, SI, True);
-        ShowScrollBar(Handle, Code, PageExtent < ScrollExtent);
+        SBVisible := PageExtent < ScrollExtent;
+        ShowScrollBar(Handle, Code, SBVisible);
+        if SBVisible then
+        begin
+          FillChar(SI, SizeOf(TScrollInfo), 0);
+          SI.cbSize := SizeOf(TScrollInfo);
+          SI.fMask := SIF_RANGE or SIF_PAGE or SIF_POS {$IFDEF UNIX}or SIF_UPDATEPOLICY{$ENDIF};
+          SI.nMin := 0;
+          SI.nMax := ScrollExtent {$IFNDEF FPC}- 1{$ENDIF};
+          SI.nPos := ScrollPos + ScrollOffset;
+          SI.nPage := PageExtent;
+        {$IFDEF UNIX}
+          SI.ntrackPos := SB_POLICY_CONTINUOUS;
+        {$ENDIF}
+          SetScrollInfo(Handle, Code, SI, True);
+        end;
       end else
         ShowScrollBar(Handle, Code, False);
   end;
@@ -13137,23 +13480,33 @@ var
   UpdateHorz, UpdateVert: Boolean;
 begin
   if not UpdateUnlocked then Exit;
-  UpdateHorz := Horz and Axis(SB_HORZ, HasHorzScrollBar, FScrollModeHorz,
-    GetAxisInfoHorz([aiFixedParams]), FTopLeft.Col, FTopLeftExtent.Col, FScrollPos.X, FScrollOffset.X);
-  UpdateVert := Vert and Axis(SB_VERT, HasVertScrollBar, FScrollModeVert,
-    GetAxisInfoVert([aiFixedParams]), FTopLeft.Row, FTopLeftExtent.Row, FScrollPos.Y, FScrollOffset.Y);
-  if UpdateNeeded or UpdateHorz then
-    InvalidateCols(FFixedCols);
-  if UpdateNeeded or UpdateVert then
-    InvalidateRows(FFixedRows);
-  if UpdateNeeded or UpdateHorz or UpdateVert then
+  if FInUpdateScrollRange then
   begin
-    UpdateEditor(Flag(cGF_EditorModeActive));
-    if UpdateHorz or UpdateVert then
-      TopLeftChanged;
-    if FOptions * [goRowSelect, goRangeSelect] <> [] then
-      InvalidateCurrentSelection;
+    PostLateUpdate(FillMessage(KM_SCROLL, 0, 0), True);
+    Exit;
   end;
-  InvalidatePageSetup;
+  FInUpdateScrollRange := True;
+  try
+    UpdateHorz := Horz and Axis(SB_HORZ, HasHorzScrollBar, FScrollModeHorz,
+      GetAxisInfoHorz([aiFixedParams]), FTopLeft.Col, FTopLeftExtent.Col, FScrollPos.X, FScrollOffset.X);
+    UpdateVert := Vert and Axis(SB_VERT, HasVertScrollBar, FScrollModeVert,
+      GetAxisInfoVert([aiFixedParams]), FTopLeft.Row, FTopLeftExtent.Row, FScrollPos.Y, FScrollOffset.Y);
+    if UpdateNeeded or UpdateHorz then
+      InvalidateCols(FFixedCols);
+    if UpdateNeeded or UpdateVert then
+      InvalidateRows(FFixedRows);
+    if UpdateNeeded or UpdateHorz or UpdateVert then
+    begin
+      UpdateEditor(Flag(cGF_EditorModeActive));
+      if UpdateHorz or UpdateVert then
+        TopLeftChanged;
+      if FOptions * [goRowSelect, goRangeSelect] <> [] then
+        InvalidateCurrentSelection;
+    end;
+    InvalidatePageSetup;
+  finally
+    FInUpdateScrollRange := False;
+  end;
 end;
 
 procedure TKCustomGrid.UpdateSize;
@@ -13330,24 +13683,38 @@ end;
 
 procedure TKCustomGrid.WriteColWidths(Writer: TWriter);
 var
-  I: Integer;
+  I, Tmp: Integer;
 begin
   with Writer do
   begin
     WriteListBegin;
-    for I := 0 to FColCount - 1 do WriteInteger(ColWidths[I]);
+    for I := 0 to FColCount - 1 do
+    begin
+      Tmp := ColWidths[I];
+      if Tmp <> DefaultColWidth then
+        WriteInteger(Tmp)
+      else
+        WriteInteger(0)
+    end;
     WriteListEnd;
   end;
 end;
 
 procedure TKCustomGrid.WriteRowHeights(Writer: TWriter);
 var
-  I: Integer;
+  I, Tmp: Integer;
 begin
   with Writer do
   begin
     WriteListBegin;
-    for I := 0 to FRowCount - 1 do WriteInteger(RowHeights[I]);
+    for I := 0 to FRowCount - 1 do
+    begin
+      Tmp := RowHeights[I];
+      if Tmp <> DefaultRowHeight then
+        WriteInteger(Tmp)
+      else
+        WriteInteger(0)
+    end;
     WriteListEnd;
   end;
 end;

@@ -285,35 +285,32 @@ type
 
   TPWIGClassList = TPWIGElementList<TPWIGClass>;
 
-
-  // supported generators
-  TPWIGGeneratorType = (
-    gtPascal, // Delphi or Lazarus
-    gtRIDL // Delphi RIDL
-  );
-
   { TPWIGGenerator }
 
   TPWIGGenerator = class
   protected
     FPWIG: TPWIG;
+    function GetName: string; virtual; abstract;
+    function GetDescription: string; virtual; abstract;
   public
     constructor Create(AOwner: TPWIG); virtual;
     procedure SaveCallerFiles(const AFileName: string); virtual; abstract;
     procedure SaveCalleeFiles(const AFileName: string); virtual; abstract;
+    property Description: string read GetDescription;
+    property Name: string read GetName;
   end;
 
   { TPWIGGeneratorConfig }
 
   TPWIGGeneratorConfig = class(TPWIGElement)
   private
-    FGenType: TPWIGGeneratorType;
+    FGenName: string;
     FGenPath: string;
   public
     constructor Create; override;
     procedure Load(ANode: TXmlNode); override;
     procedure Save(ANode: TXmlNode); override;
-    property GenType: TPWIGGeneratorType read FGenType write FGenType;
+    property GenName: string read FGenName write FGenName;
     property GenPath: string read FGenPath write FGenPath;
   end;
 
@@ -326,11 +323,13 @@ type
     FAliases: TPWIGAliasList;
     FClasses: TPWIGClassList;
     FEnums: TPWIGEnumList;
+    FGenerators: TObjectList<TPWIGGenerator>;
     FGlobalCallingConv: TPWIGCallingConv;
     FInputFile: string;
     FInterfaces: TPWIGInterfaceList;
     FCalleeConfigs: TPWIGGeneratorConfigList;
     FCallerConfigs: TPWIGGeneratorConfigList;
+    FStaticLibraryName: string;
   protected
     property InputFile: string read FInputFile;
   public
@@ -351,6 +350,7 @@ type
     property GlobalCallingConv: TPWIGCallingConv read FGlobalCallingConv write FGlobalCallingConv;
     property CalleeConfigs: TPWIGGeneratorConfigList read FCalleeConfigs;
     property CallerConfigs: TPWIGGeneratorConfigList read FCallerConfigs;
+    property StaticLibraryName: string read FStaticLibraryName;
   end;
 
 function GUIDToXMLGUID(const AID: string): string;
@@ -362,11 +362,12 @@ implementation
 uses
   Math, SysUtils, TypInfo,
   KFunctions,
-  PWIG_RIDL, PWIG_Pascal;
+  PWIG_Cpp, PWIG_CSharp, PWIG_Pascal, PWIG_RIDL;
 
 const
   nnPWIGConfig = 'pwig_configuration';
-  nnPWIGGlobalCallingConv= 'pwig_global_calling_conv';
+  nnPWIGGlobalCallingConv = 'pwig_global_calling_conv';
+  nnPWIGStaticLibName = 'pwig_static_library_name';
 
   nnPWIGType = 'pwig_datatype';
   nnPWIGTypeBaseType = 'pwig_datatype_basetype';
@@ -525,26 +526,6 @@ begin
     Result := Value
   else
     Result := ptReadWrite;
-end;
-
-function GenTypeToString(AType: TPWIGGeneratorType): string;
-var
-  S: string;
-begin
-  S := GetEnumName(TypeInfo(TPWIGGeneratorType), Ord(AType));
-  Delete(S, 1, 2); // delete 'gt' prefix
-  Result := S;
-end;
-
-function StringToGenType(const AText: string): TPWIGGeneratorType;
-var
-  Value: TPWIGGeneratorType;
-begin
-  Value := TPWIGGeneratorType(GetEnumValue(TypeInfo(TPWIGGeneratorType), 'gt' + AText));
-  if (Value >= Low(TPWIGGeneratorType)) and (Value <= High(TPWIGGeneratorType)) then
-    Result := Value
-  else
-    Result := gtPascal;
 end;
 
 { TPWIGType }
@@ -1087,7 +1068,7 @@ end;
 constructor TPWIGGeneratorConfig.Create;
 begin
   inherited;
-  FGenType := gtPascal;
+  FGenName := '';
   FGenPath := '';
 end;
 
@@ -1096,7 +1077,7 @@ begin
   inherited;
   if ANode <> nil then
   begin
-    FGenType := StringToGenType(ANode.ChildAsString(nnPWIGGenConfigType, ''));
+    FGenName := ANode.ChildAsString(nnPWIGGenConfigType, FGenName);
     FGenPath := ANode.ChildAsString(nnPWIGGenConfigPath, FGenPath);
   end;
 end;
@@ -1106,7 +1087,7 @@ begin
   inherited;
   if ANode <> nil then
   begin
-    ANode.Children.Add(nnPWIGGenConfigType).AsString := GenTypeToString(FGenType);
+    ANode.Children.Add(nnPWIGGenConfigType).AsString := FGenName;
     ANode.Children.Add(nnPWIGGenConfigPath).AsString := FGenPath;
   end;
 end;
@@ -1123,6 +1104,12 @@ begin
   FInterfaces := TPWIGInterfaceList.Create;
   FCalleeConfigs := TPWIGGeneratorConfigList.Create;
   FCallerConfigs := TPWIGGeneratorConfigList.Create;
+  FGenerators := TObjectList<TPWIGGenerator>.Create;
+  FGenerators.Add(TPWIGGenCpp.Create(Self));
+  FGenerators.Add(TPWIGGenCSharp.Create(Self));
+  FGenerators.Add(TPWIGGenPascal.Create(Self));
+  FGenerators.Add(TPWIGGenRIDL.Create(Self));
+  // add more here
 end;
 
 destructor TPWIG.Destroy;
@@ -1133,6 +1120,7 @@ begin
   FInterfaces.Free;
   FCalleeConfigs.Free;
   FCallerConfigs.Free;
+  FGenerators.Free;
   inherited;
 end;
 
@@ -1260,13 +1248,14 @@ end;
 
 procedure TPWIG.Generate;
 
-  function CreateGenerator(AGenType: TPWIGGeneratorType): TPWIGGenerator;
+  function FindGenerator(const AGenName: string): TPWIGGenerator;
+  var
+    Generator: TPWIGGenerator;
   begin
     Result := nil;
-    case AGenType of
-      gtPascal: Result := TPWIGGenPascal.Create(Self);
-      gtRIDL: Result := TPWIGGenRIDL.Create(Self);
-    end;
+    for Generator in FGenerators do
+      if LowerCase(Generator.Name) = LowerCase(AGenName) then
+        Exit(Generator);
   end;
 
 var
@@ -1277,24 +1266,18 @@ begin
   Writeln('');
   for Config in FCalleeConfigs do
   begin
-    Gen := CreateGenerator(Config.GenType);
-    try
+    Gen := FindGenerator(Config.GenName);
+    if Gen <> nil then
       Gen.SaveCalleeFiles(Config.GenPath);
-    finally
-      Gen.Free;
-    end;
   end;
   Writeln('');
   Writeln('Processing caller configurations:');
   Writeln('');
   for Config in FCallerConfigs do
   begin
-    Gen := CreateGenerator(Config.GenType);
-    try
+    Gen := FindGenerator(Config.GenName);
+    if Gen <> nil then
       Gen.SaveCallerFiles(Config.GenPath);
-    finally
-      Gen.Free;
-    end;
   end;
   Writeln('');
   Writeln('Processing completed!');
@@ -1317,6 +1300,7 @@ begin
         begin
           inherited Load(N);
           FGlobalCallingConv := StringToCallingConv(N.ChildAsString(nnPWIGGlobalCallingConv, ''));
+          FStaticLibraryName := N.ChildAsString(nnPWIGStaticLibName, '');
           FCalleeConfigs.Load(N, nnPWIGGenCalleeConfig);
           FCallerConfigs.Load(N, nnPWIGGenCallerConfig);
           FAliases.Load(N, nnPWIGAlias);
@@ -1335,10 +1319,12 @@ begin
 end;
 
 procedure TPWIG.PrintHelp;
+var
+  Generator: TPWIGGenerator;
 begin
   Writeln('PWIG is a software development tool that connects programs written in one programming language with a variety of another programming languages.');
   Writeln('It reads the interface definitions from a single XML configuration file and generates wrapper code for the caller (main program) and the callee (shared library).');
-  Writeln('PWIG has been written in Free Pascal Compiler/Lazarus, hence its name (Pascal Wrapper and Interface Generator).');
+  Writeln('PWIG has been written in Free Pascal/Lazarus, hence its name (Pascal Wrapper and Interface Generator).');
   Writeln('However, it can be used not only by Pascal programmers but for any other programming languages as well, as long as its wrapper generators exist.');
   Writeln('');
   Writeln('Syntax: PWIG [input file]');
@@ -1350,8 +1336,8 @@ begin
   Writeln('See additional documentation for the input file structure.');
   Writeln('');
   Writeln('Currently supported generators:');
-  Writeln('-Pascal (Delphi, FPC/Lazarus)');
-  Writeln('-RIDL (Delphi version of COM IDL)');
+  for Generator in FGenerators do
+    Writeln('-' + Generator.Description);
   Writeln('');
 end;
 
@@ -1405,6 +1391,7 @@ begin
       begin
         inherited Save(N);
         N.Children.Add(nnPWIGGlobalCallingConv).AsString := CallingConvToString(FGlobalCallingConv);
+        N.Children.Add(nnPWIGStaticLibName).AsString := FStaticLibraryName;
         FCalleeConfigs.Save(N, nnPWIGGenCalleeConfig);
         FCallerConfigs.Save(N, nnPWIGGenCallerConfig);
         FAliases.Save(N, nnPWIGAlias);

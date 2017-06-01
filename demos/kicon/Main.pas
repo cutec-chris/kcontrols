@@ -142,11 +142,14 @@ begin
         if KIcon.IconData[I].IsPNG then SubItems.Add('yes') else SubItems.Add('no');
       end;
     end;
-  {$IFDEF FPC}
-    LVMain.ItemFocused := LVMain.Items[KIcon.CurrentIndex];
-  {$ELSE}
-    LVMain.ItemIndex := KIcon.CurrentIndex;
-  {$ENDIF}
+    if LVMain.Items.Count > 0 then
+    begin
+    {$IFDEF FPC}
+      LVMain.ItemFocused := LVMain.Items[KIcon.CurrentIndex];
+    {$ELSE}
+      LVMain.ItemIndex := KIcon.CurrentIndex;
+    {$ENDIF}
+    end;
     UpdateSpeedButton;
   end;
 end;
@@ -184,7 +187,8 @@ var
 begin
   KIcon1 := TKIcon.Create;
   try
-    KIcon1.LoadFromHandle(Application.Icon.Handle);
+    KIcon1.LoadFromResource(HInstance, 'MAINICON');
+    //KIcon1.LoadFromHandle(Application.Icon.Handle);
     IMMain.Picture.Assign(KIcon1);
     KIcon := TKIcon(IMMain.Picture.Graphic);
     KIcon.OptimalIcon := True;
@@ -256,8 +260,10 @@ begin
       end
       else if Picture.Graphic is TKIcon then
         KIcon.Add(TKIcon(Picture.Graphic).Handles[TKIcon(Picture.Graphic).CurrentIndex])
+    {$IFDEF USE_PNG_SUPPORT}
       else if Picture.Graphic is TKPngImage then
         KIcon.AddFromPng(TKPngImage(Picture.Graphic))
+    {$ENDIF}    
       else
       begin
         BM := TBitmap.Create;
@@ -340,7 +346,9 @@ end;
 procedure TMainForm.ACExtractBitmapExecute(Sender: TObject);
 var
   BM: TBitmap;
+{$IFDEF USE_PNG_SUPPORT}
   Png: TKPngImage;
+{$ENDIF}
 begin
 {$IFDEF USE_PNG_SUPPORT}
   SDMain.Filter := cFilterPngsBitmaps;
