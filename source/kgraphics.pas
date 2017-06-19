@@ -1565,7 +1565,11 @@ begin
   if Graphic <> nil then
   try
   {$IFDEF FPC}
-    Graphic.LoadFromLazarusResource(ResName);
+    try
+      Graphic.LoadFromResourceName(HInstance, ResName);
+    except
+      Graphic.LoadFromLazarusResource(ResName);
+    end;
   {$ELSE}
     Stream := TResourceStream.Create(HInstance, ResName, ResType);
     try
