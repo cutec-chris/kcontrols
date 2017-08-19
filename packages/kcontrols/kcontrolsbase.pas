@@ -8,7 +8,7 @@ unit KControlsBase;
 interface
 
 uses
-  kfunctions, kxml, LazarusPackageIntf;
+  kfunctions, kxml, kres, LazarusPackageIntf;
 
 implementation
 
