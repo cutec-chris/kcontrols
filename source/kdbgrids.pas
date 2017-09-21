@@ -281,6 +281,7 @@ type
     procedure SetDataSource(Value: TDataSource);
     procedure SetDBOptions(const Value: TKDBGridOptions);
     procedure SetTitleRow(const Value: Integer);
+    procedure CMParentFontChanged(var Message: TMessage); message CM_PARENTFONTCHANGED;
   protected
     { This field represents the internal data link. }
     FDataLink: TKDBGridDataLink;
@@ -1784,6 +1785,22 @@ begin
   begin
     FTitleRow := Value;
     DataChanged;
+  end;
+end;
+
+procedure TKCustomDBGrid.CMParentFontChanged(var Message: TMessage);
+var i:integer;
+begin
+  inherited;
+  if ParentFont then
+  begin
+    for i:=0 to Columns.Count -1 do
+      if Columns.Items[i] is TKDBGridCol then
+      begin
+        (Columns.Items[i] as TKDBGridCol).Font.Assign(Font);
+        (Columns.Items[i] as TKDBGridCol).TitleFont.Assign(Font);
+      end;
+    Invalidate;
   end;
 end;
 
