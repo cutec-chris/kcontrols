@@ -301,6 +301,11 @@ type
     { Extends TKCustomGrid behavior. Does not allow to edit if data set is writable
       or closed etc. }
     function EditorCreate(ACol, ARow: Integer): TWinControl; override;
+    { functions for get name class (Cell,Painter,Col,Row) }
+    function GetCellClass: TKGridCellClass; override;
+    function GetCellPainterClass: TKGridCellPainterClass; override;
+    function GetColClass: TKGridColClass; override;
+    function GetColorsClass:TKGridColorsClass; override;
     { Obtains field index associated with given column index, either according to fieldname or by another method. }
     function GetFieldIndex(AColIndex: Integer): Integer; virtual;
     { Returns row where column titles should be shown, limited to current fixed row count. }
@@ -732,9 +737,9 @@ var
   ACol, ARow: Integer;
 begin
   inherited;
-  if (Grid is TKDBGrid) and not Grid.Flag(cGF_EditorUpdating or cGF_DBDataUpdating)
+  if (Grid is TKCustomDBGrid) and not Grid.Flag(cGF_EditorUpdating or cGF_DBDataUpdating)
     and FindCell(ACol, ARow) then
-    TKDBGrid(Grid).BeforeCellUpdate(ACol, ARow);
+    TKCustomDBGrid(Grid).BeforeCellUpdate(ACol, ARow);
 end;
 
 function TKDBGridCell.CreateImageByType(const Header: TKImageHeaderString): TGraphic;
@@ -1080,17 +1085,10 @@ begin
   inherited;
   FActiveRecord := -1;
   FDBOptions := cDBOptionsDef;
-  FColors.Free;
-  FColors := TKDBGridColors.Create(Self);
   FDataBufferGrow := cDataBufferGrowDef;
   FOldColumnCount := -1;
   FOldFieldCount := -1;
   FTitleRow := cTitleRowDef;
-  CellClass := TKDBGridCell;
-  RealizeCellClass;
-  CellPainterClass := TKDBGridCellPainter;
-  ColClass := TKDBGridCol;
-  RealizeColClass;
 end;
 
 destructor TKCustomDBGrid.Destroy;
@@ -1788,7 +1786,7 @@ begin
   end;
 end;
 
-procedure TKCustomDBGrid.CMParentFontChanged(var Message: TMessage);
+procedure TKCustomDBGrid.CMFontChanged(var Message: TMessage);
 var i:integer;
 begin
   inherited;
@@ -1802,6 +1800,25 @@ begin
       end;
     Invalidate;
   end;
+end;
+function TKCustomDBGrid.GetCellClass: TKGridCellClass;
+begin
+  Result:= TKDBGridCell;
+end;
+
+function TKCustomDBGrid.GetCellPainterClass: TKGridCellPainterClass;
+begin
+  Result:= TKDBGridCellPainter;
+end;
+
+function TKCustomDBGrid.GetColClass: TKGridColClass;
+begin
+  Result:=TKDBGridCol;
+end;
+
+function TKCustomDBGrid.GetColorsClass: TKGridColorsClass;
+begin
+  Result:=TKDBGridColors;
 end;
 
 procedure TKCustomDBGrid.TopLeftChanged;
