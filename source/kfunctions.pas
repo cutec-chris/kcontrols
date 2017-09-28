@@ -35,7 +35,7 @@ uses
 {$ELSE}
   Windows, Messages,
 {$ENDIF}
-  Classes, Contnrs, SysUtils;
+  Classes, Contnrs, SysUtils, Graphics;
 
 const
   { Carriage return character. }
