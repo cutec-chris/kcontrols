@@ -828,6 +828,9 @@ function InsertSpacesToDigits(const Source: AnsiString): AnsiString;
   Example: Value = $A18D, Digit = $C, Pos = 3: Result = $AC8D }
 function ReplaceDigit(Value, Digit, Pos: Integer): Integer;
 
+{ Find property 'font' in Obj and get (if found) it }
+function GetFontFromTObject(const Obj:TObject; out Font:TFont ):boolean;
+
 implementation
 
 uses
@@ -2858,6 +2861,24 @@ begin
     O := O * cHexBase;
   Mask := cHexBase - 1;
   Result := (((Value div O) and not Mask) + (Digit and Mask)) * O + Value mod O;
+end;
+
+function GetFontFromTObject(const Obj:TObject; out Font:TFont ):boolean;
+Var
+  PInfo: PPropInfo;
+
+begin
+  Result:=false;
+  PInfo := GetPropInfo( Obj.ClassInfo, 'font' );
+  if PInfo <> Nil then
+  begin
+    If (PInfo^.Proptype^.Kind = tkClass) and
+      GetTypeData(PInfo^.Proptype^)^.ClassType.InheritsFrom(TFont) then
+    begin
+      Font := TFont(GetOrdProp( Obj, PInfo ));
+      Result:=true;
+    end
+  end;
 end;
 
 end.
