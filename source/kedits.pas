@@ -810,8 +810,8 @@ function TKNumberValue.GetIVal: Int64;
 const
   cMaxInt64F =  9.223372036854775807E+18;
   cMinInt64F = -9.223372036854775808E+18;
-  cMaxInt64 =  9223372036854775807;
-  cMinInt64 = -9223372036854775808;
+  cMaxInt64:Int64 = Int64(9223372036854775807);
+  cMinInt64:Int64 = -9223372036854775807 - 1 ;
 begin
   if FHasInt then
     Result := FIVal
@@ -841,8 +841,8 @@ function TKNumberValue.GetUIVal: UInt64;
 const
   cMaxUInt64F = 1.8446744073709551615E+19;
   cMinUInt64F =                     0E+01;
-  cMaxUInt64 = 18446744073709551615;
-  cMinUInt64 =                    0;
+  cMaxUInt64:Int64 = $FFFFFFFFFFFFFFFF; //18446744073709551615; // bug in d7
+  cMinUInt64:Int64 =                    0;
 begin
   if FHasInt then
     Result := UInt64(FIVal)

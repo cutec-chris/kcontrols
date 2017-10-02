@@ -11681,38 +11681,6 @@ begin
   end;
 end;
 
-procedure TKCustomGrid.RealizeCellClass;
-var
-  I, J: Integer;
-  Cell, TmpCell: TKGridCell;
-  UpdateNeeded: Boolean;
-begin
-  if Assigned(FCells) then
-  begin
-    UpdateNeeded := False;
-    for I := 0 to FColCount - 1 do
-      for J := 0 to FRowCount - 1 do
-      begin
-        Cell := FCells[J, I];
-        if (Cell <> nil) then
-        begin
-          TmpCell := CellClass.Create(Self);
-          FlagSet(cGF_GridUpdates);
-          try
-            TmpCell.Assign(Cell); // copy known properties
-            Cell.Free;
-            FCells[J, I] := TmpCell;
-          finally
-            FlagClear(cGF_GridUpdates);
-          end;
-          UpdateNeeded := True;
-        end;
-      end;
-    if UpdateNeeded then
-      Invalidate;
-  end;
-end;
-
 procedure TKCustomGrid.ReadColWidths(Reader: TReader);
 var
   I, Tmp: Integer;

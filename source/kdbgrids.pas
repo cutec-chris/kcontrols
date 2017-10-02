@@ -281,7 +281,7 @@ type
     procedure SetDataSource(Value: TDataSource);
     procedure SetDBOptions(const Value: TKDBGridOptions);
     procedure SetTitleRow(const Value: Integer);
-    procedure CMParentFontChanged(var Message: TMessage); message CM_PARENTFONTCHANGED;
+    procedure CMFontChanged(var Message: TMessage); message CM_FONTCHANGED;
   protected
     { This field represents the internal data link. }
     FDataLink: TKDBGridDataLink;
