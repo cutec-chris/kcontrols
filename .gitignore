@@ -3,3 +3,5 @@
 .hgtags
 lib/
 *.bak
+*.dcu
+*.~pas
