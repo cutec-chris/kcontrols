@@ -203,6 +203,7 @@ type
     procedure SetVertAlign(const Value: TKVAlign);
     procedure SetHorzPadding(const Value: Integer);
     procedure SetVertPadding(const Value: Integer);
+    procedure DBGridInvalidate;
   public
     { Creates the instance. Do not create custom instances. All necessary
       TKDBGridCol instances are created automatically by TKCustomDBGrid. }
@@ -338,6 +339,9 @@ type
     { Extends TKCustomGrid Behavior. Updates the grid if control size has
       been changed. }
     procedure UpdateSize; override;
+    { function for initiation font, brush and another property column from grid }
+    procedure InitialAxisParams(Item: TCollectionItem; Action: TCollectionNotification); override;
+
   public
     { Creates the instance. Assigns default values to properties, allocates
       default column, row and cell data, constucts a data link. }
@@ -934,8 +938,7 @@ end;
 procedure TKDBGridCol.SetBrush(const Value: TBrush);
 begin
   FBrush.Assign(Value);
-  if Grid is TKDBGrid then
-    TKDBGrid(Grid).Invalidate;
+  DBGridInvalidate;
 end;
 
 procedure TKDBGridCol.SetFieldName(const Value: TKString);
@@ -943,16 +946,15 @@ begin
   if Value <> FFieldName then
   begin
     FFieldName := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).DataChanged;
+    if Grid is TKCustomDBGrid then
+      TKCustomDBGrid(Grid).DataChanged;
   end;
 end;
 
 procedure TKDBGridCol.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
-  if Grid is TKDBGrid then
-    TKDBGrid(Grid).Invalidate;
+  DBGridInvalidate;
 end;
 
 procedure TKDBGridCol.SetHorzAlign(const Value: TKHAlign);
@@ -960,8 +962,7 @@ begin
   if Value <> FHorzAlign then
   begin
     FHorzAlign := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).Invalidate;
+    DBGridInvalidate;
   end;
 end;
 
@@ -970,8 +971,7 @@ begin
   if Value <> FHorzPadding then
   begin
     FHorzPadding := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).Invalidate;
+    DBGridInvalidate;
   end;
 end;
 
@@ -980,14 +980,15 @@ begin
   if Value <> FTitle then
   begin
     FTitle := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).DataChanged;
+    if Grid is TKCustomDBGrid then
+      TKCustomDBGrid(Grid).DataChanged;
   end;
 end;
 
 procedure TKDBGridCol.SetTitleFont(const Value: TFont);
 begin
-  FTitleFont := Value;
+  FTitleFont.Assign(Value);
+  DBGridInvalidate;
 end;
 
 procedure TKDBGridCol.SetVertAlign(const Value: TKVAlign);
@@ -995,8 +996,7 @@ begin
   if Value <> FVertAlign then
   begin
     FVertAlign := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).Invalidate;
+    DBGridInvalidate;
   end;
 end;
 
@@ -1005,9 +1005,14 @@ begin
   if Value <> FVertPadding then
   begin
     FVertPadding := Value;
-    if Grid is TKDBGrid then
-      TKDBGrid(Grid).Invalidate;
+    DBGridInvalidate;
   end;
+end;
+
+procedure TKDBGridCol.DBGridInvalidate;
+begin
+  if Grid is TKCustomDBGrid then
+    TKCustomDBGrid(Grid).Invalidate;
 end;
 
 { TKDBGridCellPainter }
@@ -1790,16 +1795,27 @@ procedure TKCustomDBGrid.CMFontChanged(var Message: TMessage);
 var i:integer;
 begin
   inherited;
-  if ParentFont then
-  begin
     for i:=0 to Columns.Count -1 do
       if Columns.Items[i] is TKDBGridCol then
+      with (Columns.Items[i] as TKDBGridCol) do
       begin
-        (Columns.Items[i] as TKDBGridCol).Font.Assign(Font);
-        (Columns.Items[i] as TKDBGridCol).TitleFont.Assign(Font);
+        Font.Assign(Self.Font);
+        TitleFont.Assign(Self.Font);
       end;
     Invalidate;
   end;
+
+procedure TKCustomDBGrid.InitialAxisParams(Item: TCollectionItem; Action: TCollectionNotification);
+begin
+  inherited;
+  if (Action = cnAdded) and (Item is TKDBGridCol) then
+    with (Item as TKDBGridCol) do
+    begin
+      Font.Assign(Self.Font);
+      TitleFont.Assign(Self.Font);
+      Brush.Assign(Self.Brush);
+      // may be anothers assign ?
+    end;
 end;
 function TKCustomDBGrid.GetCellClass: TKGridCellClass;
 begin

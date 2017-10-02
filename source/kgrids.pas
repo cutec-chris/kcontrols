@@ -1350,6 +1350,8 @@ type
   { @abstract(Metaclass for @link(TKGridAxisItem)) This type is used internally. }
   TKGridAxisItemClass = class of TKGridAxisItem;
 
+  TCollectionNotifyEvent = procedure(Item: TCollectionItem; Action: TCollectionNotification) of object;
+
   { @abstract(Collection type to store @link(TKGridAxisItem) instances)
     There are always two collections of this type in TKCustomGrid. First of them
     stores column properties - @link(TKCustomGrid.FCols) - and the second stores
@@ -1357,6 +1359,7 @@ type
   TKGridAxisItems = class(TOwnedCollection)
   private
     FGrid: TKCustomGrid;
+    FEventItem:TCollectionNotifyEvent;
     function GetItem(Index: Integer): TKGridAxisItem;
     procedure SetItem(Index: Integer; Value: TKGridAxisItem);
   protected
@@ -1366,6 +1369,11 @@ type
     { Creates the instance. Do not create custom instances. All necessary
       TKGridAxisItems instances are created automatically by TKCustomGrid. }
     constructor Create(Grid: TKCustomGrid; AClass: TCollectionItemClass);
+    { Setting params(font, etc) where add new column }
+    procedure Notify(Item: TCollectionItem; Action: TCollectionNotification); override;
+
+
+
     { Adds new item to this collection by updating the grid. }
     function Add: TKGridAxisItem; virtual;
     { Adds new item only to this collection. }
@@ -1386,6 +1394,7 @@ type
     property Grid: TKCustomGrid read FGrid;
     { References items. }
     property Items[Index: Integer]: TKGridAxisItem read GetItem write SetItem; default;
+    property EventItem:TCollectionNotifyEvent read FEventItem write FEventItem;
   end;
 
   { @abstract(Class to store column properties)
@@ -2283,6 +2292,7 @@ type
     procedure WMKillFocus(var Msg: TLMKillFocus); message LM_KILLFOCUS;
     procedure WMSetFocus(var Msg: TLMSetFocus); message LM_SETFOCUS;
     procedure WMVScroll(var Msg: TLMVScroll); message LM_VSCROLL;
+
   protected
     { Index of active selection, ie. selection being manipulated by mouse. }
     FActiveSelection: Integer;
@@ -2362,6 +2372,8 @@ type
     { Temporary mouse cursor. }
     FTmpCursor: TCursor;
   {$ENDIF}
+    { function for initiation font, brush and another property column from grid }
+    procedure InitialAxisParams(Item: TCollectionItem; Action: TCollectionNotification); virtual;
     { Adjusts the page setup. Ensures the PrintingMapped property is always True. }
     procedure AdjustPageSetup; override;
     { Adjusts any selection rectangle specified by ASelection to be valid
@@ -4355,13 +4367,23 @@ begin
   FGrid := Grid;
 end;
 
+procedure TKGridAxisItems.Notify(Item: TCollectionItem; Action: TCollectionNotification);
+begin
+  if Assigned(FEventItem) then
+    FEventItem(Item, Action);
+end;
+
 function TKGridAxisItems.Add: TKGridAxisItem;
 begin
-  if (FGrid <> nil) and (Self = FGrid.ArrayOfCols) then
-    Result := FGrid.InsertCol(-1)
-  else if (FGrid <> nil) and (Self = FGrid.ArrayOfRows) then
-    Result := FGrid.InsertRow(-1)
-  else
+  Result:=nil;
+  if Assigned(FGrid) then
+  begin
+    if Self = FGrid.ArrayOfCols then
+      Result := FGrid.InsertCol(-1);
+    if Self = FGrid.ArrayOfRows then
+      Result := FGrid.InsertRow(-1);
+  end;
+  if not Assigned(Result) then
     Result := AddOnly;
 end;
 
@@ -4415,6 +4437,9 @@ end;
 
 function TKGridAxisItems.GetItem(Index: Integer): TKGridAxisItem;
 begin
+  if (Index < 0) or (Index >= Count) then
+    Result:=nil
+  else
   Result := TKGridAxisItem(inherited Items[Index]);
 end;
 
@@ -4425,11 +4450,15 @@ end;
 
 function TKGridAxisItems.Insert(At: Integer): TKGridAxisItem;
 begin
+  Result:=nil;
+  if Assigned(FGrid) then
+  begin
   if Self = FGrid.ArrayOfCols then
-    Result := FGrid.InsertCol(At)
-  else if (FGrid <> nil) and (Self = FGrid.ArrayOfRows) then
-    Result := FGrid.InsertRow(At)
-  else
+      Result := FGrid.InsertCol(At);
+    if Self = FGrid.ArrayOfRows then
+      Result := FGrid.InsertRow(At);
+  end;
+  if not Assigned(Result) then
     Result := InsertOnly(At);
 end;
 
@@ -5268,6 +5297,7 @@ begin
   FBrush.OnChange := BrushChange;
   FBrushChanged := False;
   FFont := TFont.Create;
+  FFont.Assign(AGrid.Font);
   FFont.OnChange := FontChange;
   FFontChanged := False;
   Initialize;
@@ -6349,6 +6379,7 @@ begin
   FCellPainter := CellPainterClass.Create(Self);
   FColCount := cInvalidIndex;
   FCols := TKGridAxisItems.Create(Self, ColClass);
+  FCols.EventItem:=InitialAxisParams;
   FColors := GetColorsClass.Create(Self);
   FDefaultColWidth := cDefaultColWidthDef;
   FDefaultRowHeight := GetDefaultRowHeight;
@@ -6482,6 +6513,11 @@ end;
 function TKCustomGrid.AddSelection(ARect: TKGridRect): Integer;
 begin
   Result := FSelections.Add(ARect);
+end;
+
+procedure TKCustomGrid.InitialAxisParams(Item: TCollectionItem; Action: TCollectionNotification);
+begin
+  // empty, for future
 end;
 
 procedure TKCustomGrid.AdjustPageSetup;
@@ -9029,6 +9065,9 @@ end;
 
 function TKCustomGrid.InternalGetCell(ACol, ARow: Integer): TKGridCell;
 begin
+  Result:=nil;
+  if (ARow < 0) or (ACol < 0) then
+    exit;
   if FCells[ARow, ACol] = nil then
     FCells[ARow, ACol] := CellClass.Create(Self);
   Result := FCells[ARow, ACol];
@@ -10165,6 +10204,9 @@ begin
   FCellPainter.State := AState;
   FCellPainter.CellPos := ARect.TopLeft;
   FCellPainter.Canvas := Canvas;
+  FCellPainter.Canvas.Brush.Assign(Canvas.Brush);
+  FCellPainter.Canvas.Font.Assign(Canvas.Font);
+  FCellPainter.Canvas.Pen.Assign(Canvas.Pen);
   FCellPainter.CellRect := ARect;
   FCellPainter.FPrinting := False;
   // prepare cell painter and measure cell data
@@ -13359,7 +13401,7 @@ procedure TKCustomGrid.UpdateScrollRange(Horz, Vert, UpdateNeeded: Boolean);
     MaxExtent := Info.ClientExtent - Info.FixedBoundary;
     I := Info.TotalCellCount - 1;
     FirstGridCellExtent := I;
-    while I >= Info.FixedCellCount do
+    while I >= Max(Info.FixedCellCount,0) do //FixedCellCount may be "-1" (for future initialization : col = 0 and row =0  )
     begin
       CellExtent := Info.CellExtent(I);
       Inc(ScrollExtent, CellExtent + Info.EffectiveSpacing(I));
