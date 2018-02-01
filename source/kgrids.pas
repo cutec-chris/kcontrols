@@ -2941,7 +2941,7 @@ type
     procedure DeleteRows(At, Count: Integer); virtual;
     { Deletes specified selection from selection list. }
     procedure DeleteSelection(Index: Integer); virtual;
-    {$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
+    {$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1080006)}
     procedure DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
       const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean); override;
     {$IFEND}
@@ -7539,7 +7539,7 @@ begin
     FSelections.Delete(Index);
 end;
 
-{$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
+{$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1080006)}
 procedure TKCustomGrid.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
   const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean);
 var
