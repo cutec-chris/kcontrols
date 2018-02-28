@@ -2941,10 +2941,12 @@ type
     procedure DeleteRows(At, Count: Integer); virtual;
     { Deletes specified selection from selection list. }
     procedure DeleteSelection(Index: Integer); virtual;
-    {$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1080006)}
+(* Commented out because unclear which Lazarus version supports/will support this...
+    {$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
     procedure DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
       const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean); override;
     {$IFEND}
+*)
     { Retrieves the base cell if the cell given by ACol and ARow belongs to a merged cell
       or returns ACol and ARow if it is a non-merged cell. }
     procedure FindBaseCell(ACol, ARow: Integer; out BaseCol, BaseRow: Integer); virtual;
@@ -7539,7 +7541,8 @@ begin
     FSelections.Delete(Index);
 end;
 
-{$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1080006)}
+(* Commented out because unclear which Lazarus version supports/will support this...
+{$IF (lcl_fullversion >= 1080000) AND (lcl_fullversion < 1090000)}
 procedure TKCustomGrid.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
   const AXProportion, AYProportion: Double; const AScale0Fonts: Boolean);
 var
@@ -7571,6 +7574,7 @@ begin
   end;
 end;
 {$IFEND}
+*)
 
 function TKCustomGrid.DoMouseWheelDown(Shift: TShiftState; MousePos: TPoint): Boolean;
 var
@@ -7970,7 +7974,7 @@ begin
   if ARow <> nil then
   begin
     Index := 0;
-    while Index < ColCount do
+    while Index < RowCount do
     begin
       if FRows[Index] <> TKGridAxisItem(ARow) then
         Inc(Index)

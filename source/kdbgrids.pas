@@ -27,7 +27,7 @@ interface
 
 uses
 {$IFDEF FPC}
-  LCLType, LCLIntf, LCLProc, LResources, LMessages,
+  LCLType, LCLIntf, LCLProc, LResources,
 {$ELSE}
   Windows, Messages,
 {$ENDIF}
@@ -269,9 +269,6 @@ type
 
   { @abstract(KGrid data aware base component) This is the class that you use as
     the ancestor for your TKCustomDBGrid overrides. }
-
-  { TKCustomDBGrid }
-
   TKCustomDBGrid = class(TKCustomGrid)
   private
     FActiveRecord: Integer;
@@ -284,7 +281,6 @@ type
     procedure SetDataSource(Value: TDataSource);
     procedure SetDBOptions(const Value: TKDBGridOptions);
     procedure SetTitleRow(const Value: Integer);
-    procedure CMParentFontChanged(var Message: TLMessage); message CM_PARENTFONTCHANGED;
   protected
     { This field represents the internal data link. }
     FDataLink: TKDBGridDataLink;
@@ -1788,22 +1784,6 @@ begin
   begin
     FTitleRow := Value;
     DataChanged;
-  end;
-end;
-
-procedure TKCustomDBGrid.CMParentFontChanged(var Message: TLMessage);
-var i:integer;
-begin
-  inherited;
-  if ParentFont then
-  begin
-    for i:=0 to Columns.Count -1 do
-      if Columns.Items[i] is TKDBGridCol then
-      begin
-        (Columns.Items[i] as TKDBGridCol).Font.Assign(Font);
-        (Columns.Items[i] as TKDBGridCol).TitleFont.Assign(Font);
-      end;
-    Invalidate;
   end;
 end;
 
